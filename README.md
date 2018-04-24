@@ -17,7 +17,7 @@ to be accessed using Data Object Service APIs.
 ```
 
 
-A development version of this service is available at https://spbnq0bc10.execute-api.us-west-2.amazonaws.com/api/ .
+A development version of this service is available at https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ .
 To make proper use of the service, one can either use cURL or an HTTP client to write API requests
 following the [OpenAPI description](https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/swagger.json).
 
