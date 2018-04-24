@@ -123,7 +123,7 @@ def list_data_objects(**kwargs):
     query = {'size': per_page}
     if page_token:
         query['from'] = page_token
-    if req_body.get('alias', None):
+    if req_body and req_body.get('alias', None):
         # We kludge on our own tag scheme
         alias = req_body.get('alias')
         k, v = alias.split(":")
