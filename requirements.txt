@@ -1,0 +1,6 @@
+requests
+PyYAML
+boto
+botocore
+#ga4gh-dos-schemas
+bravado
