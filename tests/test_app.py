@@ -108,7 +108,7 @@ class TestApp(TestCase):
 
         :return:
         """
-        my_guid = 'MY-IDENTIFIER'
+        my_guid = 'doi:MY-IDENTIFIER'
         # First get an object to update
         body = {
             'alias': 'specimenUUID:d842b267-a154-5192-988b-b9f9f0265840',
@@ -149,6 +149,9 @@ class TestApp(TestCase):
             headers={'content-type': 'application/json'},
             body=json.dumps(update_request))
         self.assertEquals(update_response['statusCode'], 200)
+        update_response_body = json.loads(update_response['body'])
+        self.assertEqual(
+            data_object['id'], update_response_body['data_object_id'])
 
         # Now get it again to verify it is there
         get_response = self.lg.handle_request(

@@ -70,7 +70,7 @@ def safe_get_data_object(data_object_id):
     return responses to the client as necessary.
 
     :param data_object_id:
-    :return:
+    :return: Tuple of data_object and source document
     """
     query = {
         'query':
@@ -111,7 +111,7 @@ def safe_get_data_object(data_object_id):
             {"msg": "{} was not found".format(data_object_id)},
             status_code=400)
 
-    return data_object
+    return data_object, hit
 
 
 @app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
@@ -126,7 +126,7 @@ def get_data_object(data_object_id):
     :return:
     """
 
-    return {'data_object': safe_get_data_object(data_object_id)}
+    return {'data_object': safe_get_data_object(data_object_id)[0]}
 
 
 @app.route("{}/dataobjects/list".format(base_path),
@@ -185,7 +185,7 @@ def update_data_object(data_object_id):
     :return:
     """
     # First try to get the Object specified
-    data_object = safe_get_data_object(data_object_id)
+    data_object, source = safe_get_data_object(data_object_id)
 
     # Now check to see the contents don't already contain
     # any aliases we want to add.
@@ -195,16 +195,60 @@ def update_data_object(data_object_id):
     new_aliases = filter(
         lambda x: x not in data_object['aliases'],
         update_body['aliases'])
-    print(new_aliases)
     if len(new_aliases) == 0:
         return Response(
             {'msg': 'No new aliases, nothing was changed.'
                     'Please check your request details.'}, status_code=400)
 
+    data_object['aliases'] = data_object['aliases'] + new_aliases
+
+    es_id = source['_id']
+
+    # It is an implementation detail of this DOS that aliases
+    # are namespaced to provide a categorical discovery
+    # process.
+
+    # We are expecting string keys as aliases, so we can add
+    # them if they are not already present.
+
+    # But first, to avoid overwriting existing keys, we check
+    # against the contents of the source document.
+
+    for alias in new_aliases:
+        if ':' not in alias:
+            return Response(
+                {'msg': 'Aliases must be namespaced by providing'
+                        'a {key}:{value} structure'}, status_code=400)
+
+    new_tuples = map(lambda x: x.split(':'), new_aliases)
+
+    existing_keys = source['_source'].keys()
+
+    for new_tuple in new_tuples:
+        if new_tuple[0] in existing_keys:
+            return Response(
+                {'msg': 'Existing keys can\'t be overwritten.'
+                        'Please check the alias {} is not already'
+                        'in the source document.'.format(new_tuple)},
+                status_code=400)
+
+    # Now that we believe we are not overwriting an existing
+    # key and that we have the source document, we can
+    # attempt to perform the update.
+
+    es_update_response = client.make_request(
+        method='POST', path='/{}/doc/{}/_update'.format(es_index, es_id),
+        data=json.dumps({'doc': source}))
+
+    es_update_response_body = json.loads(es_update_response.read())
+
     return {
+        'data_object_id': data_object_id,
         'aliases': update_body['aliases'],
         'data_object': data_object,
-        'new_aliases': new_aliases}
+        'new_aliases': new_aliases,
+        'source': source,
+        'es_response': es_update_response_body}
 
 
 @app.route('/swagger.json', cors=True)
