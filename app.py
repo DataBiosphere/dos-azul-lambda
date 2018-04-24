@@ -64,18 +64,14 @@ def index():
     return resp.read()
 
 
-@app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
-           methods=['GET'], cors=True)
-def get_data_object(data_object_id):
+def safe_get_data_object(data_object_id):
     """
-    Gets a Data Object by file identifier by making a query
-    against the azul-index and returning the first matching
-    file.
+    Implements a guarded attempt to get a Data Object by identifier,
+    return responses to the client as necessary.
 
-    :param kwargs:
+    :param data_object_id:
     :return:
     """
-    # FIXME how does sorting by date work in azul-index?
     query = {
         'query':
             {'bool': {'must': {'term': {'file_id': data_object_id}}}}}
@@ -115,7 +111,21 @@ def get_data_object(data_object_id):
             {"msg": "{} was not found".format(data_object_id)},
             status_code=400)
 
-    return {'data_object': data_object}
+    return data_object
+
+@app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
+           methods=['GET'], cors=True)
+def get_data_object(data_object_id):
+    """
+    Gets a Data Object by file identifier by making a query
+    against the azul-index and returning the first matching
+    file.
+
+    :param kwargs:
+    :return:
+    """
+
+    return {'data_object': safe_get_data_object(data_object_id)}
 
 
 @app.route("{}/dataobjects/list".format(base_path),
@@ -161,6 +171,20 @@ def list_data_objects(**kwargs):
     return {
         'data_objects': data_objects[0:per_page],
         'next_page_token': next_page_token}
+
+
+@app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
+           methods=['POST'], cors=True)
+def update_data_object(data_object_id):
+    """
+    Updates a Data Object's alias field only, while not modifying
+    version information.
+
+    :param kwargs:
+    :return:
+    """
+    # First try to get the Object specified
+    return safe_get_data_object(data_object_id)
 
 
 @app.route('/swagger.json', cors=True)
