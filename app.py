@@ -134,7 +134,7 @@ def list_data_objects(**kwargs):
     except Exception as e:
         return {"resp": resp.read(), "exception": str(e)}
     data_objects = map(lambda x: azul_to_dos(x['_source']), hits)
-    return {'data_objects': data_objects, 'page_token': next_page_token}
+    return {'data_objects': data_objects, 'next_page_token': next_page_token}
 
 @app.route('/swagger.json', cors=True)
 def swagger():
