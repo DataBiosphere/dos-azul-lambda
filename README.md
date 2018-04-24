@@ -1,5 +1,7 @@
 # dos-azul-lambda
 
+<img src="https://travis-ci.org/DataBiosphere/dos-azul-lambda.svg?branch=master" />
+
 This presents an [Amazon Lambda](https://aws.amazon.com/lambda/) microservice
 following the [Data Object Service](https://github.com/ga4gh/data-object-service-schemas) ([view the OpenAPI description](https://ga4gh.github.io/data-object-service-schemas/)!).
 It allows data in the [Human Cell Atlas Data Store](https://github.com/HumanCellAtlas/data-store)
@@ -17,7 +19,7 @@ to be accessed using Data Object Service APIs.
 ```
 
 
-A development version of this service is available at https://spbnq0bc10.execute-api.us-west-2.amazonaws.com/api/ .
+A development version of this service is available at https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ .
 To make proper use of the service, one can either use cURL or an HTTP client to write API requests
 following the [OpenAPI description](https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/swagger.json).
 
@@ -132,6 +134,19 @@ You can then run `chalice deploy --no-autogen-policy`.
 
 Chalice will return a HTTP location that you can issue DOS requests to! You can then use
 HTTP requests in the style of the [Data Object Service](https://ga4gh.github.io/data-object-service-schemas).
+
+#### Running Tests
+
+Some integration tests are available in the tests directory.
+
+```
+pip install -r dev-requirements.txt
+nosetests
+```
+
+Assuming your AWS credentials are set up properly to access the Elastic Search
+domain, you will see a few tests pass that demonstrate the List and Get
+features of the DOS endpoint.
 
 ### Accessing data using DOS client
 
