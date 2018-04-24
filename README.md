@@ -135,6 +135,19 @@ You can then run `chalice deploy --no-autogen-policy`.
 Chalice will return a HTTP location that you can issue DOS requests to! You can then use
 HTTP requests in the style of the [Data Object Service](https://ga4gh.github.io/data-object-service-schemas).
 
+#### Running Tests
+
+Some integration tests are available in the tests directory.
+
+```
+pip install -r dev-requirements.txt
+nosetests
+```
+
+Assuming your AWS credentials are set up properly to access the Elastic Search
+domain, you will see a few tests pass that demonstrate the List and Get
+features of the DOS endpoint.
+
 ### Accessing data using DOS client
 
 A Python client for the Data Object Service is made available [here](https://github.com/ga4gh/data-object-service-schemas/blob/master/python/ga4gh/dos/client.py).
