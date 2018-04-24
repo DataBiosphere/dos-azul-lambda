@@ -114,8 +114,7 @@ def list_data_objects(**kwargs):
     """
     req_body = app.current_request.json_body
     per_page = 10
-    page_token = None
-    next_page_token = None
+    page_token = 0
     if req_body and (req_body.get('page_size', None)):
         per_page = req_body.get('page_size')
     if req_body and (req_body.get('page_token', None)):
