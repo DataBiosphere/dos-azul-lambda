@@ -1,7 +1,7 @@
 import os
 import json
 
-from chalice import Chalice
+from chalice import Chalice, Response
 from boto.connection import AWSAuthConnection
 import requests
 import yaml
@@ -103,6 +103,47 @@ def index():
     resp = client.make_request(method='GET', path='/')
     return resp.read()
 
+@app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"), methods=['GET'], cors=True)
+def get_data_object(data_object_id):
+    """
+    Gets a Data Object by file identifier by making a query
+    against the azul-index and returning the first matching
+    file.
+
+    :param kwargs:
+    :return:
+    """
+    # FIXME how does sorting by date work in azul-index?
+    query = {'query': {'bool': {'must': {'term': {'file_id': data_object_id}}}}}
+    response = client.make_request(method='GET', path='/{}/_search'.format(es_index), data=json.dumps(query))
+    try:
+        es_response = json.loads(response.read())
+    except Exception as e:
+        # Return error message with 400, Bad request
+        return Response({'msg': str(e)},
+                        status_code=400)
+
+    try:
+        hits = es_response['hits']['hits']
+    except Exception as e:
+        return Response({"msg": json.loads(response.read())}, status_code=400)
+
+    if len(hits) == 0:
+        return Response({"msg": "{} was not found".format(data_object_id)}, status_code=404)
+    else:
+        # FIXME we just take the first
+        hit = hits[0]
+    try:
+        data_object = azul_to_dos(hit['_source'])
+    except Exception as e:
+        return Response({"msg": str(e)}, status_code=400)
+
+    # FIXME hack to guarantee identity since `file_id` is an analyzed field
+    if data_object['id'] != data_object_id:
+        return Response({"msg": "{} was not found".format(data_object_id)}, status_code=400)
+
+    return {'data_object': data_object}
+
 @app.route("{}/dataobjects/list".format(base_path), methods=['POST'], cors=True)
 def list_data_objects(**kwargs):
     """
@@ -130,9 +171,12 @@ def list_data_objects(**kwargs):
     next_page_token = str(int(page_token) + 1)
     resp = client.make_request(method='GET', path='/{}/_search'.format(es_index), data=json.dumps(query))
     try:
+        # The elasticsearch response includes the `hits` array.
         hits = json.loads(resp.read())['hits']['hits']
     except Exception as e:
-        return {"resp": resp.read(), "exception": str(e)}
+        # Return error message with 400, Bad request
+        return Response({'msg': json.loads(resp.read())},
+                        status_code=400)
     data_objects = map(lambda x: azul_to_dos(x['_source']), hits)
     return {'data_objects': data_objects, 'next_page_token': next_page_token}
 
