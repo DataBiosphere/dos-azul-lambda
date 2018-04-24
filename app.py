@@ -130,20 +130,19 @@ def list_data_objects(**kwargs):
     """
     req_body = app.current_request.json_body
     per_page = 10
-    page_token = 0
+    page_token = "0"
     if req_body and (req_body.get('page_size', None)):
         per_page = req_body.get('page_size')
     if req_body and (req_body.get('page_token', None)):
         page_token = req_body.get('page_token')
-    query = {'size': per_page}
-    if page_token:
+    query = {'size': per_page + 1}
+    if page_token != "0":
         query['from'] = page_token
     if req_body and req_body.get('alias', None):
         # We kludge on our own tag scheme
         alias = req_body.get('alias')
         k, v = alias.split(":")
         query['query'] = {'match': {k: v}}
-    next_page_token = str(int(page_token) + 1)
     resp = client.make_request(
         method='GET', path='/{}/_search'.format(es_index),
         data=json.dumps(query))
@@ -154,8 +153,14 @@ def list_data_objects(**kwargs):
         # Return error message with 400, Bad request
         return Response({'msg': json.loads(resp.read())},
                         status_code=400)
+    if len(hits) > per_page:
+        next_page_token = str(int(page_token) + 1)
+    else:
+        next_page_token = None
     data_objects = map(lambda x: azul_to_dos(x['_source']), hits)
-    return {'data_objects': data_objects, 'next_page_token': next_page_token}
+    return {
+        'data_objects': data_objects[0:per_page],
+        'next_page_token': next_page_token}
 
 
 @app.route('/swagger.json', cors=True)
