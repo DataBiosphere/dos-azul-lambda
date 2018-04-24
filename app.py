@@ -73,7 +73,7 @@ def azul_to_dos(azul):
     # remove multiply valued items before we move into aliases
     del azul['urls']
     data_object['aliases'] = ["{}:{}".format(k, azul[k]) for k in azul.keys()]
-    data_object['updated'] = azul['lastModified']
+    data_object['updated'] = azul['lastModified'] + 'Z'
     data_object['name'] = azul['title']
     return data_object
 
