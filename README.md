@@ -7,20 +7,30 @@ to be accessed using Data Object Service APIs.
 
 ## Using the service
 
+```
++------------------+      +---------------+        +-----------+
+| ga4gh-dos-client |------|dos-azul-lambda|--------|azul-index |
++--------|---------+      +---------------+        +-----------+
+         |                        |
+         |                        |
+         |------------------swagger.json
+```
+
+
 A development version of this service is available at https://spbnq0bc10.execute-api.us-west-2.amazonaws.com/api/ .
 To make proper use of the service, one can either use cURL or an HTTP client to write API requests
-following the [OpenAPI description](https://spbnq0bc10.execute-api.us-west-2.amazonaws.com/api/swagger.json).
+following the [OpenAPI description](https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/swagger.json).
 
 ```
 # Will request the first page of Data Bundles from the service.
-curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{}' 'https://spbnq0bc10.execute-api.us-west-2.amazonaws.com/api/ga4gh/dos/v1/databundles/list'
+curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{}' 'https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ga4gh/dos/v1/dataobjects/list'
 ```
 
 There is also a Python client available, that makes it easier to use the service from code.
 
 ```
 from ga4gh.dos.client import Client
-client = Client("https://spbnq0bc10.execute-api.us-west-2.amazonaws.com/api")
+client = Client("https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api")
 local_client = client.client
 models = client.models
 local_client.ListDataBundles(body={}).result()
@@ -32,9 +42,11 @@ For more information refer to the [Data Object Service](https://github.com/ga4gh
 
 ### Status
 
-This software is being actively developed to provide the greatest level of feature parity
-between DOS and DSS. It also presents an area to explore features that might extend the DOS
-API. Current development items can be seen in [the Issues](https://github.com/DataBiosphere/dos-azul-lambda/issues).
+This software is being actively developed to provide basic access to listing of
+Data Objects made available by the dss-azul-indexer.
+
+It also presents an area to explore features that allow DSS data to be resolved
+by arbitrary provided metadata. Current development items can be seen in [the Issues](https://github.com/DataBiosphere/dos-azul-lambda/issues).
 
 ### Feature development
 
@@ -54,10 +66,9 @@ not from DOS.
 #### DOS Features
 
 * File listing
-  *  The DSS API presents bundle oriented indices and so listing all the details of files
-     can be a challenge.
+  *  The DSS API presents bundle oriented indices that are not present in the dos-azul-index.
 * Filter by URL
-  *  Retrieve bundle entries by their URL to satisfy the DOS List request.
+  *  Retrieve Data Objects by url, will require the dss-azul mapping to allow nested search.
 
 ### Installing and Deploying
 
@@ -71,10 +82,55 @@ service.
 pip install chalice
 git clone https://github.com/DataBiosphere/dos-azul-lambda.git
 cd dos-azul-lambda
-chalice deploy
 ```
 
-Chalice will return a HTTP location that you can issue DOS requests to. You can then use
+Then, edit the `.chalice/config.json` to use the instance of the azul-index you would like to use.
+
+Here is an example config.json
+
+```
+{
+  "version": "2.0",
+  "app_name": "dos-azul-lambda",
+  "stages": {
+    "dev": {
+      "api_gateway_stage": "api",
+      "environment_variables": {
+         "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
+         "ES_REGION": "us-west-2",
+         "ES_INDEX":"fb_index",
+         "HOME":"/tmp"
+      }
+    }
+  }
+}
+```
+
+Then, create a file `.chalice/policy-dev.json` so it can access you azul index, assuming its
+permissions have been set to allow it.
+
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "es:ESHttpDelete",
+                "es:ESHttpGet",
+                "es:ESHttpHead",
+                "es:ESHttpPost",
+                "es:ESHttpPut"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+You can then run `chalice deploy --no-autogen-policy`.
+
+Chalice will return a HTTP location that you can issue DOS requests to! You can then use
 HTTP requests in the style of the [Data Object Service](https://ga4gh.github.io/data-object-service-schemas).
 
 ### Accessing data using DOS client
@@ -87,32 +143,3 @@ This notebook will guide you through basic read access to data in the DSS via DO
 
 If you have a problem accessing the service or deploying it for yourself, please head
 over to [the Issues](https://github.com/DataBiosphere/dos-azul-lambda/issues) to let us know!
-
-
-## TODO
-
-* Validation
-* Error handling
-* Aliases
-* Filter by URL
-
-```                                                                                         
-+------------------+      +---------------+        +--------+
-| ga4gh-dos-client |------|dos-azul-lambda|--------|DSS API |
-+--------|---------+      +---------------+        +--------+
-         |                        |                                                         
-         |                        |                                                         
-         |------------------swagger.json                                                    
-```
-
-We have created a lambda that creates a lightweight layer that can be used
-to access data in the HCA DSS using GA4GH libraries.
-
-The lambda accepts DOS requests and converts them into requests against
-DSS endpoints. The results are then translated into DOS style messages before
-being returned to the client.
-
-To make it easy for developers to create clients against this API, the Open API
-description is made available.
-
-
