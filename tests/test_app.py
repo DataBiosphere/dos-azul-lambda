@@ -123,6 +123,17 @@ class TestApp(TestCase):
         data_objects = response_body['data_objects']
         data_object = data_objects[0]
 
+        # First we'll try to update something with no new
+        # information, this should give us an error
+
+        url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object['id'])
+        update_response = self.lg.handle_request(
+            method='PUT',
+            path=url,
+            headers={'content-type': 'application/json'},
+            body=json.dumps(data_object))
+        self.assertEquals(update_response['statusCode'], 400)
+
         # Make sure it doesn't already include the GUID
         self.assertNotIn(my_guid, data_object['aliases'])
 

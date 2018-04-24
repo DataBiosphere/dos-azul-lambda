@@ -113,6 +113,7 @@ def safe_get_data_object(data_object_id):
 
     return data_object
 
+
 @app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
            methods=['GET'], cors=True)
 def get_data_object(data_object_id):
@@ -174,7 +175,7 @@ def list_data_objects(**kwargs):
 
 
 @app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
-           methods=['POST'], cors=True)
+           methods=['PUT'], cors=True)
 def update_data_object(data_object_id):
     """
     Updates a Data Object's alias field only, while not modifying
@@ -184,7 +185,26 @@ def update_data_object(data_object_id):
     :return:
     """
     # First try to get the Object specified
-    return safe_get_data_object(data_object_id)
+    data_object = safe_get_data_object(data_object_id)
+
+    # Now check to see the contents don't already contain
+    # any aliases we want to add.
+
+    update_body = app.current_request.json_body
+
+    new_aliases = filter(
+        lambda x: x not in data_object['aliases'],
+        update_body['aliases'])
+    print(new_aliases)
+    if len(new_aliases) == 0:
+        return Response(
+            {'msg': 'No new aliases, nothing was changed.'
+                    'Please check your request details.'}, status_code=400)
+
+    return {
+        'aliases': update_body['aliases'],
+        'data_object': data_object,
+        'new_aliases': new_aliases}
 
 
 @app.route('/swagger.json', cors=True)
