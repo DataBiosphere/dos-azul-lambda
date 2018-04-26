@@ -227,6 +227,24 @@ class TestApp(TestCase):
         print(got_data_object)
         self.assertIn(my_guid, got_data_object['aliases'])
 
+        # MEAT AND POTATOES - now we actually use a DOS
+        # ListDataObjectsRequest to find our item by the
+        # identifier we provided.
+
+        list_request = {
+            'alias': my_guid,
+            'page_size': 10}
+        list_response = self.lg.handle_request(
+            method='POST',
+            path='/ga4gh/dos/v1/dataobjects/list',
+            headers={'content-type': 'application/json'},
+            body=json.dumps(list_request))
+        response_body = json.loads(list_response['body'])
+        data_objects = response_body['data_objects']
+        self.assertEquals(1, len(data_objects))
+        listed_object = data_objects[0]
+        self.assertIn(my_guid, listed_object['aliases'])
+
         # Lastly, modify the value so we can rerun tests on the
         # same object
         data_object['aliases'][-1] = "doi:abc"
