@@ -206,8 +206,6 @@ class TestApp(TestCase):
         update_response_body = json.loads(update_response['body'])
         self.assertEqual(
             data_object['id'], update_response_body['data_object_id'])
-        print('UPDATED RESPONSE')
-        print(update_response_body)
 
         import time
         time.sleep(2)
@@ -223,8 +221,7 @@ class TestApp(TestCase):
         self.assertEqual(
             update_response_body['data_object_id'],
             got_data_object['id'])
-        print('GOT OBJECT')
-        print(got_data_object)
+
         self.assertIn(my_guid, got_data_object['aliases'])
 
         # MEAT AND POTATOES - now we actually use a DOS
@@ -246,8 +243,11 @@ class TestApp(TestCase):
         self.assertIn(my_guid, listed_object['aliases'])
 
         # Lastly, modify the value so we can rerun tests on the
-        # same object
-        data_object['aliases'][-1] = "doi:abc"
+        # same object, make it an ugly thing to test the alias
+        # key value splitting
+
+        ugly_alias = "doi:abc:def:ghi"
+        data_object['aliases'][-1] = ugly_alias
         update_request = {'data_object': data_object}
         update_response = self.lg.handle_request(
             method='PUT',
@@ -256,9 +256,23 @@ class TestApp(TestCase):
             body=json.dumps(update_request))
         self.assertEquals(update_response['statusCode'], 200)
         update_response_body = json.loads(update_response['body'])
+        print('UPDATED RESPONSE')
+        print(update_response_body)
         self.assertEqual(
             data_object['id'], update_response_body['data_object_id'])
+        time.sleep(2)
 
+        get_response = self.lg.handle_request(
+            method='GET',
+            path=url,
+            headers={},
+            body='')
+        self.assertEquals(get_response['statusCode'], 200)
+        get_response_body = json.loads(get_response['body'])
+        got_data_object = get_response_body['data_object']
+        print('GOT OBJECT')
+        print(got_data_object)
+        self.assertIn(ugly_alias, got_data_object['aliases'])
         time.sleep(2)
         # Now get it again to verify it is gone
         get_response = self.lg.handle_request(
