@@ -100,13 +100,18 @@ Here is an example config.json
       "environment_variables": {
          "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2",
-         "ES_INDEX":"fb_index",
+         "ES_INDEX": "fb_index",
+         "ACCESS_KEY": "<YOUR_ACCESS_KEY>"
          "HOME":"/tmp"
       }
     }
   }
 }
 ```
+
+Note the environment variables, which are passed to the application. The `ACCESS_KEY`
+should be a hard to guess string of letters and numbers. When requests to modify
+an index are made, this value is checked for in the `access_key` header of the request.
 
 Then, create a file `.chalice/policy-dev.json` so it can access you azul index, assuming its
 permissions have been set to allow it.
