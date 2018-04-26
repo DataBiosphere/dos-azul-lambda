@@ -219,6 +219,14 @@ def update_data_object(data_object_id):
     :param kwargs:
     :return:
     """
+    # Before anything, make sure they are allowed to make the
+    # modification.
+    if not check_auth():
+        return Response({'msg': 'Not authorized to access '
+                                'this service. Set the '
+                                'access_token in request '
+                                'headers.'}, status_code=403)
+
     # First try to get the Object specified
     data_object, source = safe_get_data_object(data_object_id)
 
