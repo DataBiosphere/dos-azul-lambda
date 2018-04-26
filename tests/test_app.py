@@ -1,23 +1,11 @@
 import json
-import os
 from unittest import TestCase
 
 from chalice.config import Config
 from chalice.local import LocalGateway
 
-from app import app, ESConnection
+from app import app
 
-DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com'  # NOQA
-DEFAULT_REGION = 'us-west-2'
-DEFAULT_INDEX = 'fb_index'
-DEFAULT_DOCTYPE = 'meta'
-
-es_index = os.environ.get('ES_INDEX', DEFAULT_INDEX)
-es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
-es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
-es_doctype = os.environ.get('ES_DOCTYPE', DEFAULT_DOCTYPE)
-client = ESConnection(
-    region=es_region, host=es_host, is_secure=False)
 
 class TestApp(TestCase):
     def setUp(self):
@@ -122,23 +110,21 @@ class TestApp(TestCase):
         """
         my_guid = 'doi:MY-IDENTIFIER'
         # First get an object to update
-        body = {
-            'alias': 'specimenUUID:d842b267-a154-5192-988b-b9f9f0265840',
-            'page_size': 1}
-        list_response = self.lg.handle_request(
-            method='POST',
-            path='/ga4gh/dos/v1/dataobjects/list',
-            headers={'content-type': 'application/json'},
-            body=json.dumps(body))
-        self.assertEquals(list_response['statusCode'], 200)
-        response_body = json.loads(list_response['body'])
-        data_objects = response_body['data_objects']
-        data_object = data_objects[0]
+
+        data_object_id = "f4f437e8-dce2-4383-b99f-5d3da64e87a9"
+        url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object_id)
+
+        get_response = self.lg.handle_request(
+            method='GET',
+            path=url,
+            headers={},
+            body='')
+        self.assertEquals(get_response['statusCode'], 200)
+        data_object = json.loads(get_response['body'])['data_object']
 
         # First we'll try to update something with no new
         # information, this is a noop and will return 200.
 
-        url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object['id'])
         update_response = self.lg.handle_request(
             method='PUT',
             path=url,
@@ -151,7 +137,7 @@ class TestApp(TestCase):
 
         # Next, we'll try to update with a "protected key", i.e.
         # a value that has already been set on an item that is
-        # not in the "whitelist".
+        # not in the list of safe keys.
 
         data_object['aliases'].append('file_id:GARBAGEID')
 
@@ -170,7 +156,6 @@ class TestApp(TestCase):
         data_object['aliases'].append(my_guid)
 
         # Make an update request
-        url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object['id'])
         update_request = data_object
         update_response = self.lg.handle_request(
             method='PUT',
@@ -181,7 +166,11 @@ class TestApp(TestCase):
         update_response_body = json.loads(update_response['body'])
         self.assertEqual(
             data_object['id'], update_response_body['data_object_id'])
+        print('UPDATED RESPONSE')
+        print(update_response_body)
 
+        import time
+        time.sleep(2)
         # Now get it again to verify it is there
         get_response = self.lg.handle_request(
             method='GET',
@@ -194,6 +183,8 @@ class TestApp(TestCase):
         self.assertEqual(
             update_response_body['data_object_id'],
             got_data_object['id'])
+        print('GOT OBJECT')
+        print(got_data_object)
         self.assertIn(my_guid, got_data_object['aliases'])
 
         # Lastly, modify the value so we can rerun tests on the
@@ -209,7 +200,7 @@ class TestApp(TestCase):
         self.assertEqual(
             data_object['id'], update_response_body['data_object_id'])
 
-
+        time.sleep(2)
         # Now get it again to verify it is gone
         get_response = self.lg.handle_request(
             method='GET',
