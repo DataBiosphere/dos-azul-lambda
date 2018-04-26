@@ -34,6 +34,21 @@ def azul_to_dos(azul):
     return data_object
 
 
+def check_auth():
+    """
+    Execute during a request to return a boolean of whether
+    the request has the appropriate access_token in its headers.
+
+    :return:
+    """
+
+    headers = app.current_request.headers
+    match = False
+    if 'access_token' in headers.keys():
+        match = headers['access_token'] == access_token
+    return match
+
+
 class ESConnection(AWSAuthConnection):
     def __init__(self, region, **kwargs):
         super(ESConnection, self).__init__(**kwargs)
@@ -52,11 +67,13 @@ DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.
 DEFAULT_REGION = 'us-west-2'
 DEFAULT_INDEX = 'fb_index'
 DEFAULT_DOCTYPE = 'meta'
+DEFAULT_ACCESS_TOKEN = 'f4ce9d3d23f4ac9dfdc3c825608dc660'
 
 es_index = os.environ.get('ES_INDEX', DEFAULT_INDEX)
 es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
 es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
 es_doctype = os.environ.get('ES_DOCTYPE', DEFAULT_DOCTYPE)
+access_token = os.environ.get('ACCESS_KEY', DEFAULT_ACCESS_TOKEN)
 client = ESConnection(
     region=es_region, host=es_host, is_secure=False)
 app = Chalice(app_name='dos-azul-lambda')
@@ -69,6 +86,18 @@ base_path = '/ga4gh/dos/v1'
 def index():
     resp = client.make_request(method='GET', path='/')
     return resp.read()
+
+
+@app.route('/test_token', methods=["GET", "POST"], cors=True)
+def test_token():
+    """
+    A convenience endpoint for testing whether an access token
+    is active or not. Will return a JSON with a key `authorized`
+    and a boolean regarding the key's value.
+
+    :return:
+    """
+    return {'authorized': check_auth()}
 
 
 def safe_get_data_object(data_object_id):
@@ -132,7 +161,6 @@ def get_data_object(data_object_id):
     :param kwargs:
     :return:
     """
-
     return {'data_object': safe_get_data_object(data_object_id)[0]}
 
 
