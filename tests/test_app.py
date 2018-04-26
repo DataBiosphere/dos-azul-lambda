@@ -11,6 +11,31 @@ class TestApp(TestCase):
     def setUp(self):
         self.lg = LocalGateway(app, Config())
 
+    def test_auth(self):
+        """
+        Tests the basic access_token authentication method.
+
+        :return:
+        """
+        response = self.lg.handle_request(
+            method='GET',
+            path='/test_token',
+            headers={},
+            body='')
+        self.assertEquals(response['statusCode'], 200)
+        response_body = json.loads(response['body'])
+        self.assertFalse(response_body['authorized'])
+
+        access_token = "f4ce9d3d23f4ac9dfdc3c825608dc660"
+        response = self.lg.handle_request(
+            method='GET',
+            path='/test_token',
+            headers={'access_token': access_token},
+            body='')
+        self.assertEquals(response['statusCode'], 200)
+        response_body = json.loads(response['body'])
+        self.assertTrue(response_body['authorized'])
+
     def test_get_root(self):
         """
         Tests to see we can access the ES instance.
