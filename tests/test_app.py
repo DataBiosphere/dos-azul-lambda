@@ -1,11 +1,23 @@
 import json
+import os
 from unittest import TestCase
 
 from chalice.config import Config
 from chalice.local import LocalGateway
 
-from app import app
+from app import app, ESConnection
 
+DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com'  # NOQA
+DEFAULT_REGION = 'us-west-2'
+DEFAULT_INDEX = 'fb_index'
+DEFAULT_DOCTYPE = 'meta'
+
+es_index = os.environ.get('ES_INDEX', DEFAULT_INDEX)
+es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
+es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
+es_doctype = os.environ.get('ES_DOCTYPE', DEFAULT_DOCTYPE)
+client = ESConnection(
+    region=es_region, host=es_host, is_secure=False)
 
 class TestApp(TestCase):
     def setUp(self):
@@ -124,7 +136,24 @@ class TestApp(TestCase):
         data_object = data_objects[0]
 
         # First we'll try to update something with no new
-        # information, this should give us an error
+        # information, this is a noop and will return 200.
+
+        url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object['id'])
+        update_response = self.lg.handle_request(
+            method='PUT',
+            path=url,
+            headers={'content-type': 'application/json'},
+            body=json.dumps(data_object))
+        self.assertEquals(update_response['statusCode'], 200)
+
+        # Make sure it doesn't already include the GUID
+        self.assertNotIn(my_guid, data_object['aliases'])
+
+        # Next, we'll try to update with a "protected key", i.e.
+        # a value that has already been set on an item that is
+        # not in the "whitelist".
+
+        data_object['aliases'].append('file_id:GARBAGEID')
 
         url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object['id'])
         update_response = self.lg.handle_request(
@@ -134,8 +163,8 @@ class TestApp(TestCase):
             body=json.dumps(data_object))
         self.assertEquals(update_response['statusCode'], 400)
 
-        # Make sure it doesn't already include the GUID
-        self.assertNotIn(my_guid, data_object['aliases'])
+        # Remove that "bad alias".
+        data_object['aliases'] = data_object['aliases'][:-1]
 
         # Modify to include a GUID
         data_object['aliases'].append(my_guid)
@@ -162,5 +191,35 @@ class TestApp(TestCase):
         self.assertEquals(get_response['statusCode'], 200)
         get_response_body = json.loads(get_response['body'])
         got_data_object = get_response_body['data_object']
-
+        self.assertEqual(
+            update_response_body['data_object_id'],
+            got_data_object['id'])
         self.assertIn(my_guid, got_data_object['aliases'])
+
+        # Lastly, modify the value so we can rerun tests on the
+        # same object
+        data_object['aliases'][-1] = "doi:abc"
+        update_response = self.lg.handle_request(
+            method='PUT',
+            path=url,
+            headers={'content-type': 'application/json'},
+            body=json.dumps(data_object))
+        self.assertEquals(update_response['statusCode'], 200)
+        update_response_body = json.loads(update_response['body'])
+        self.assertEqual(
+            data_object['id'], update_response_body['data_object_id'])
+
+
+        # Now get it again to verify it is gone
+        get_response = self.lg.handle_request(
+            method='GET',
+            path=url,
+            headers={},
+            body='')
+        self.assertEquals(get_response['statusCode'], 200)
+        get_response_body = json.loads(get_response['body'])
+        got_data_object = get_response_body['data_object']
+        self.assertEqual(
+            update_response_body['data_object_id'],
+            got_data_object['id'])
+        self.assertNotIn(my_guid, got_data_object['aliases'])
