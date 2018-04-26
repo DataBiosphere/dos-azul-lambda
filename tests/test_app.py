@@ -10,6 +10,7 @@ from app import app
 class TestApp(TestCase):
     def setUp(self):
         self.lg = LocalGateway(app, Config())
+        self.access_token = "f4ce9d3d23f4ac9dfdc3c825608dc660"
 
     def test_auth(self):
         """
@@ -26,11 +27,10 @@ class TestApp(TestCase):
         response_body = json.loads(response['body'])
         self.assertFalse(response_body['authorized'])
 
-        access_token = "f4ce9d3d23f4ac9dfdc3c825608dc660"
         response = self.lg.handle_request(
             method='GET',
             path='/test_token',
-            headers={'access_token': access_token},
+            headers={'access_token': self.access_token},
             body='')
         self.assertEquals(response['statusCode'], 200)
         response_body = json.loads(response['body'])
@@ -148,12 +148,27 @@ class TestApp(TestCase):
         data_object = json.loads(get_response['body'])['data_object']
 
         # First we'll try to update something with no new
-        # information, this is a noop and will return 200.
+        # information. Since it's an auth'ed endpoint, this
+        # should fail.
 
         update_response = self.lg.handle_request(
             method='PUT',
             path=url,
             headers={'content-type': 'application/json'},
+            body=json.dumps(data_object))
+        self.assertEquals(update_response['statusCode'], 403)
+
+        # Now we will set the headers for the remainder of
+        # the tests.
+
+        headers = {
+            'content-type': 'application/json',
+            'access_token': self.access_token}
+
+        update_response = self.lg.handle_request(
+            method='PUT',
+            path=url,
+            headers=headers,
             body=json.dumps(data_object))
         self.assertEquals(update_response['statusCode'], 200)
 
@@ -170,7 +185,7 @@ class TestApp(TestCase):
         update_response = self.lg.handle_request(
             method='PUT',
             path=url,
-            headers={'content-type': 'application/json'},
+            headers=headers,
             body=json.dumps(data_object))
         self.assertEquals(update_response['statusCode'], 400)
 
@@ -185,7 +200,7 @@ class TestApp(TestCase):
         update_response = self.lg.handle_request(
             method='PUT',
             path=url,
-            headers={'content-type': 'application/json'},
+            headers=headers,
             body=json.dumps(update_request))
         self.assertEquals(update_response['statusCode'], 200)
         update_response_body = json.loads(update_response['body'])
@@ -218,7 +233,7 @@ class TestApp(TestCase):
         update_response = self.lg.handle_request(
             method='PUT',
             path=url,
-            headers={'content-type': 'application/json'},
+            headers=headers,
             body=json.dumps(data_object))
         self.assertEquals(update_response['statusCode'], 200)
         update_response_body = json.loads(update_response['body'])
@@ -230,7 +245,7 @@ class TestApp(TestCase):
         get_response = self.lg.handle_request(
             method='GET',
             path=url,
-            headers={},
+            headers=headers,
             body='')
         self.assertEquals(get_response['statusCode'], 200)
         get_response_body = json.loads(get_response['body'])
