@@ -204,9 +204,12 @@ def list_data_objects(**kwargs):
     else:
         next_page_token = None
     data_objects = map(lambda x: azul_to_dos(x['_source']), hits)
-    return {
-        'data_objects': data_objects[0:per_page],
-        'next_page_token': next_page_token}
+    if next_page_token:
+        return {
+            'data_objects': data_objects[0:per_page],
+            'next_page_token': next_page_token}
+    else:
+        return {'data_objects': data_objects[0:per_page]}
 
 
 @app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
@@ -233,11 +236,23 @@ def update_data_object(data_object_id):
     # Now check to see the contents don't already contain
     # any aliases we want to add.
 
-    update_body = app.current_request.json_body
+    if app.current_request.json_body:
+        update_body = app.current_request.json_body
+    else:
+        return Response(
+                {'msg': 'Please add a data_object to '
+                        'in the body of your request'}, status_code=400)
+
+    if update_body.get('data_object', None):
+        update_data_object = update_body['data_object']
+    else:
+        return Response(
+                {'msg': 'Please add a data_object to '
+                        'in the body of your request'}, status_code=400)
 
     new_aliases = filter(
         lambda x: x not in data_object['aliases'],
-        update_body['aliases'])
+        update_data_object['aliases'])
     # if len(new_aliases) == 0:
     #     return Response(
     #         {'msg': 'No new aliases, nothing was changed. '
@@ -290,7 +305,7 @@ def update_data_object(data_object_id):
 
     return {
         'data_object_id': data_object_id,
-        'aliases': update_body['aliases'],
+        'aliases': update_data_object['aliases'],
         'data_object': data_object,
         'new_aliases': new_aliases,
         'source': source,
