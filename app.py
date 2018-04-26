@@ -6,6 +6,11 @@ from boto.connection import AWSAuthConnection
 import requests
 import yaml
 
+# If a key already exists on a document, it won't be
+# modified by an UpdateObjectRequest, unless the key
+# is in this list. See tests.
+safe_keys = ['doi']
+
 
 def azul_to_dos(azul):
     """
@@ -46,10 +51,12 @@ class ESConnection(AWSAuthConnection):
 DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com'  # NOQA
 DEFAULT_REGION = 'us-west-2'
 DEFAULT_INDEX = 'fb_index'
+DEFAULT_DOCTYPE = 'meta'
 
 es_index = os.environ.get('ES_INDEX', DEFAULT_INDEX)
 es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
 es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
+es_doctype = os.environ.get('ES_DOCTYPE', DEFAULT_DOCTYPE)
 client = ESConnection(
     region=es_region, host=es_host, is_secure=False)
 app = Chalice(app_name='dos-azul-lambda')
@@ -195,10 +202,10 @@ def update_data_object(data_object_id):
     new_aliases = filter(
         lambda x: x not in data_object['aliases'],
         update_body['aliases'])
-    if len(new_aliases) == 0:
-        return Response(
-            {'msg': 'No new aliases, nothing was changed.'
-                    'Please check your request details.'}, status_code=400)
+    # if len(new_aliases) == 0:
+    #     return Response(
+    #         {'msg': 'No new aliases, nothing was changed. '
+    #                 'Please check your request details.'}, status_code=400)
 
     data_object['aliases'] = data_object['aliases'] + new_aliases
 
@@ -211,9 +218,6 @@ def update_data_object(data_object_id):
     # We are expecting string keys as aliases, so we can add
     # them if they are not already present.
 
-    # But first, to avoid overwriting existing keys, we check
-    # against the contents of the source document.
-
     for alias in new_aliases:
         if ':' not in alias:
             return Response(
@@ -222,13 +226,16 @@ def update_data_object(data_object_id):
 
     new_tuples = map(lambda x: x.split(':'), new_aliases)
 
+    # But first, to avoid overwriting existing keys, we check
+    # against the contents of the source document.
+
     existing_keys = source['_source'].keys()
 
     for new_tuple in new_tuples:
-        if new_tuple[0] in existing_keys:
+        if new_tuple[0] in existing_keys and new_tuple[0] not in safe_keys:
             return Response(
                 {'msg': 'Existing keys can\'t be overwritten.'
-                        'Please check the alias {} is not already'
+                        'Please check the alias {} is not already '
                         'in the source document.'.format(new_tuple)},
                 status_code=400)
 
@@ -236,9 +243,12 @@ def update_data_object(data_object_id):
     # key and that we have the source document, we can
     # attempt to perform the update.
 
+    updated_fields = {x[0]: x[1] for x in new_tuples}
+
     es_update_response = client.make_request(
-        method='POST', path='/{}/doc/{}/_update'.format(es_index, es_id),
-        data=json.dumps({'doc': source}))
+        method='POST', path='/{}/{}/{}/_update'.format(
+            es_index, es_doctype, es_id),
+        data=json.dumps({'doc': updated_fields}))
 
     es_update_response_body = json.loads(es_update_response.read())
 
