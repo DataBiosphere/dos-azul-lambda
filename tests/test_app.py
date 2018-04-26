@@ -146,7 +146,7 @@ class TestApp(TestCase):
             body='')
         self.assertEquals(get_response['statusCode'], 200)
         data_object = json.loads(get_response['body'])['data_object']
-
+        update_request = {'data_object': data_object}
         # First we'll try to update something with no new
         # information. Since it's an auth'ed endpoint, this
         # should fail.
@@ -155,7 +155,7 @@ class TestApp(TestCase):
             method='PUT',
             path=url,
             headers={'content-type': 'application/json'},
-            body=json.dumps(data_object))
+            body=json.dumps(update_request))
         self.assertEquals(update_response['statusCode'], 403)
 
         # Now we will set the headers for the remainder of
@@ -169,7 +169,7 @@ class TestApp(TestCase):
             method='PUT',
             path=url,
             headers=headers,
-            body=json.dumps(data_object))
+            body=json.dumps(update_request))
         self.assertEquals(update_response['statusCode'], 200)
 
         # Make sure it doesn't already include the GUID
@@ -180,7 +180,7 @@ class TestApp(TestCase):
         # not in the list of safe keys.
 
         data_object['aliases'].append('file_id:GARBAGEID')
-
+        update_request = {'data_object': data_object}
         url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object['id'])
         update_response = self.lg.handle_request(
             method='PUT',
@@ -196,7 +196,7 @@ class TestApp(TestCase):
         data_object['aliases'].append(my_guid)
 
         # Make an update request
-        update_request = data_object
+        update_request = {'data_object': data_object}
         update_response = self.lg.handle_request(
             method='PUT',
             path=url,
@@ -248,11 +248,12 @@ class TestApp(TestCase):
         # Lastly, modify the value so we can rerun tests on the
         # same object
         data_object['aliases'][-1] = "doi:abc"
+        update_request = {'data_object': data_object}
         update_response = self.lg.handle_request(
             method='PUT',
             path=url,
             headers=headers,
-            body=json.dumps(data_object))
+            body=json.dumps(update_request))
         self.assertEquals(update_response['statusCode'], 200)
         update_response_body = json.loads(update_response['body'])
         self.assertEqual(
