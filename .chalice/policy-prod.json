@@ -1,0 +1,16 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "es:ESHttpDelete",
+                "es:ESHttpGet",
+                "es:ESHttpHead",
+                "es:ESHttpPost",
+                "es:ESHttpPut"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}

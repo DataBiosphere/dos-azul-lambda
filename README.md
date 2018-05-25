@@ -42,6 +42,11 @@ For more information refer to the [Data Object Service](https://github.com/ga4gh
 
 ## Development
 
+You can run the application locally with `chalice local` and run tests with `nosetests`.
+
+To deploy to different environments (dev, staging, prod), modify the .chalice/config.json to point to the correct ES instance 
+and then run: `chalice deploy --stage staging --no-autogen-policy`
+
 ### Status
 
 This software is being actively developed to provide basic access to listing of
