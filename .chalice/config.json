@@ -1,7 +1,7 @@
 {
   "stages": {
     "dev": {
-      "api_gateway_stage": "api",
+      "api_gateway_stage": "dev",
       "environment_variables": {
          "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2",
@@ -10,7 +10,7 @@
       }
     },
     "staging": {
-      "api_gateway_stage": "api",
+      "api_gateway_stage": "staging",
       "environment_variables": {
          "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2",
@@ -19,7 +19,7 @@
       }
     },
     "prod": {
-      "api_gateway_stage": "api",
+      "api_gateway_stage": "prod",
       "environment_variables": {
          "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2",
