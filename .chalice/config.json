@@ -1,10 +1,31 @@
 {
   "stages": {
     "dev": {
-      "api_gateway_stage": "api"
-    }, 
+      "api_gateway_stage": "api",
+      "environment_variables": {
+         "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
+         "ES_REGION": "us-west-2",
+         "ES_INDEX":"fb_index",
+         "HOME":"/tmp"
+      }
+    },
+    "staging": {
+      "api_gateway_stage": "api",
+      "environment_variables": {
+         "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
+         "ES_REGION": "us-west-2",
+         "ES_INDEX":"fb_index",
+         "HOME":"/tmp"
+      }
+    },
     "prod": {
-      "api_gateway_stage": "api"
+      "api_gateway_stage": "api",
+      "environment_variables": {
+         "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
+         "ES_REGION": "us-west-2",
+         "ES_INDEX":"fb_index",
+         "HOME":"/tmp"
+      }
     }
   }, 
   "version": "2.0", 
