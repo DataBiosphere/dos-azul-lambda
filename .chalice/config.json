@@ -8,9 +8,9 @@
       }
     },
     "staging": {
-      "api_gateway_stage": "staging",
+      "api_gateway_stage": "commonsstaging",
       "environment_variables": {
-         "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
+         "ES_HOST": "search-dss-index-commonsstaging-umpfdpphkpmtiwkuojfyjuko6a.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2"
       }
     },
