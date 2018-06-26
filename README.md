@@ -88,6 +88,28 @@ Then, edit the `.chalice/config.json` to use the instance of the azul-index you 
 
 Here is an example config.json
 
+```
+{
+  "version": "2.0",
+  "app_name": "dos-azul-lambda",
+  "stages": {
+    "dev": {
+      "api_gateway_stage": "api",
+      "environment_variables": {
+         "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
+         "ES_REGION": "us-west-2",
+         "ES_INDEX": "fb_index",
+         "ACCESS_KEY": "<YOUR_ACCESS_KEY>"
+         "HOME":"/tmp"
+      }
+    }
+  }
+}
+```
+
+Note the environment variables, which are passed to the application. The `ACCESS_KEY`
+should be a hard to guess string of letters and numbers. When requests to modify
+an index are made, this value is checked for in the `access_key` header of the request.
 
 Then, create a file `.chalice/policy-dev.json` so it can access you azul index, assuming its
 permissions have been set to allow it.
@@ -96,6 +118,15 @@ permissions have been set to allow it.
 {
     "Version": "2012-10-17",
     "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:*:*:*"
+        },
         {
             "Action": [
                 "es:ESHttpDelete",
@@ -111,7 +142,7 @@ permissions have been set to allow it.
 }
 ```
 
-Then run: `chalice deploy --stage commonsstaging --no-autogen-policy`
+You can then run `chalice deploy --staging commonsstaging --no-autogen-policy`.
 
 Chalice will return a HTTP location that you can issue DOS requests to! You can then use
 HTTP requests in the style of the [Data Object Service](https://ga4gh.github.io/data-object-service-schemas).
