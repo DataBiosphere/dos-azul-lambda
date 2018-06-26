@@ -19,33 +19,26 @@ to be accessed using Data Object Service APIs.
 ```
 
 
-A development version of this service is available at https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ .
+A development version of this service is available at https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging/ .
 To make proper use of the service, one can either use cURL or an HTTP client to write API requests
-following the [OpenAPI description](https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/swagger.json).
+following the [OpenAPI description](https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging/swagger.json).
 
 ```
 # Will request the first page of Data Bundles from the service.
-curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{}' 'https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ga4gh/dos/v1/dataobjects/list'
+curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{}' 'https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging/ga4gh/dos/v1/dataobjects/list'
 ```
 
 There is also a Python client available, that makes it easier to use the service from code.
 
 ```
 from ga4gh.dos.client import Client
-client = Client("https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api")
+client = Client("https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging")
 local_client = client.client
 models = client.models
 local_client.ListDataBundles(body={}).result()
 ```
 
 For more information refer to the [Data Object Service](https://github.com/ga4gh/data-object-service-schemas).
-
-## Development
-
-You can run the application locally with `chalice local` and run tests with `nosetests`.
-
-To deploy to different environments (dev, staging, prod), modify the .chalice/config.json to point to the correct ES instance 
-and then run: `chalice deploy --stage staging --no-autogen-policy`
 
 ### Status
 
@@ -126,6 +119,15 @@ permissions have been set to allow it.
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:*:*:*"
+        },
+        {
             "Action": [
                 "es:ESHttpDelete",
                 "es:ESHttpGet",
@@ -140,10 +142,15 @@ permissions have been set to allow it.
 }
 ```
 
-You can then run `chalice deploy --no-autogen-policy`.
+You can then run `chalice deploy --staging commonsstaging --no-autogen-policy`.
 
 Chalice will return a HTTP location that you can issue DOS requests to! You can then use
 HTTP requests in the style of the [Data Object Service](https://ga4gh.github.io/data-object-service-schemas).
+
+Finally, make sure the your DOS lambda has access to the dos-azul-index by editing its access policy.
+If you need directions on how to setup the dos-azul-index, you can follow the directions in [here](https://github.com/DataBiosphere/cgp-dss-azul-indexer/tree/feature/commons)
+
+You can also run the application locally with `chalice local` and run tests with `nosetests`.
 
 #### Running Tests
 
