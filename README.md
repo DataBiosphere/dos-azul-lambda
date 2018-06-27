@@ -40,6 +40,13 @@ local_client.ListDataBundles(body={}).result()
 
 For more information refer to the [Data Object Service](https://github.com/ga4gh/data-object-service-schemas).
 
+## Development
+
+You can run the application locally with `chalice local` and run tests with `nosetests`.
+
+To deploy to different environments (dev, staging, prod), modify the .chalice/config.json to point to the correct ES instance 
+and then run: `chalice deploy --stage staging --no-autogen-policy`
+
 ### Status
 
 This software is being actively developed to provide basic access to listing of
@@ -119,15 +126,6 @@ permissions have been set to allow it.
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogGroup",
-                "logs:CreateLogStream",
-                "logs:PutLogEvents"
-            ],
-            "Resource": "arn:aws:logs:*:*:*"
-        },
-        {
             "Action": [
                 "es:ESHttpDelete",
                 "es:ESHttpGet",
@@ -142,18 +140,10 @@ permissions have been set to allow it.
 }
 ```
 
-You can then run `chalice deploy --staging commonsstaging --no-autogen-policy`.
-
-Or, deploy to a specific AWS API Gateway stage, run:
-`chalice deploy --no-autogen-policy --staging <stagename>`
+You can then run `chalice deploy --no-autogen-policy`.
 
 Chalice will return a HTTP location that you can issue DOS requests to! You can then use
 HTTP requests in the style of the [Data Object Service](https://ga4gh.github.io/data-object-service-schemas).
-
-Finally, make sure the your DOS lambda has access to the dos-azul-index by editing its access policy.
-If you need directions on how to setup the dos-azul-index, you can follow the directions in [here](https://github.com/DataBiosphere/cgp-dss-azul-indexer/tree/feature/commons)
-
-You can also run the application locally with `chalice local` and run tests with `nosetests`.
 
 #### Running Tests
 
