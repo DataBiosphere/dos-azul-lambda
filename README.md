@@ -19,20 +19,20 @@ to be accessed using Data Object Service APIs.
 ```
 
 
-A development version of this service is available at https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging/ .
+A development version of this service is available at https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ .
 To make proper use of the service, one can either use cURL or an HTTP client to write API requests
-following the [OpenAPI description](https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging/swagger.json).
+following the [OpenAPI description](https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/swagger.json).
 
 ```
 # Will request the first page of Data Bundles from the service.
-curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{}' 'https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging/ga4gh/dos/v1/dataobjects/list'
+curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{}' 'https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ga4gh/dos/v1/dataobjects/list'
 ```
 
 There is also a Python client available, that makes it easier to use the service from code.
 
 ```
 from ga4gh.dos.client import Client
-client = Client("https://z3phemzxx7.execute-api.us-west-2.amazonaws.com/commonsstaging")
+client = Client("https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api")
 local_client = client.client
 models = client.models
 local_client.ListDataBundles(body={}).result()
@@ -143,6 +143,9 @@ permissions have been set to allow it.
 ```
 
 You can then run `chalice deploy --staging commonsstaging --no-autogen-policy`.
+
+Or, deploy to a specific AWS API Gateway stage, run:
+`chalice deploy --no-autogen-policy --staging <stagename>`
 
 Chalice will return a HTTP location that you can issue DOS requests to! You can then use
 HTTP requests in the style of the [Data Object Service](https://ga4gh.github.io/data-object-service-schemas).
