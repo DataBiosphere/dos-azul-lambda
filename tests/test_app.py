@@ -1,5 +1,6 @@
 import json
 from unittest import TestCase
+import urllib
 
 from chalice.config import Config
 from chalice.local import LocalGateway
@@ -11,6 +12,10 @@ class TestApp(TestCase):
     def setUp(self):
         self.lg = LocalGateway(app, Config())
         self.access_token = "f4ce9d3d23f4ac9dfdc3c825608dc660"
+
+    def get_query_url(self, path, body={}, **kwargs):
+        body.update(kwargs)
+        return path + '?' + urllib.urlencode(body)
 
     def test_auth(self):
         """
@@ -59,10 +64,9 @@ class TestApp(TestCase):
         """
         page_size = 10
         response = self.lg.handle_request(
-            method='POST',
-            path='/ga4gh/dos/v1/dataobjects/list',
-            headers={'content-type': 'application/json'},
-            body=json.dumps({'page_size': page_size}))
+            method='GET',
+            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', page_size=page_size),
+            headers={}, body='')
 
         self.assertEquals(response['statusCode'], 200)
         response_body = json.loads(response['body'])
@@ -74,10 +78,9 @@ class TestApp(TestCase):
         :return:
         """
         list_response = self.lg.handle_request(
-            method='POST',
-            path='/ga4gh/dos/v1/dataobjects/list',
-            headers={'content-type': 'application/json'},
-            body=json.dumps({}))
+            method='GET',
+            path='/ga4gh/dos/v1/dataobjects',
+            headers={}, body='')
 
         data_objects = json.loads(list_response['body'])['data_objects']
         data_object_id = data_objects[0]['id']
@@ -100,15 +103,13 @@ class TestApp(TestCase):
             'alias': 'specimenUUID:d842b267-a154-5192-988b-b9f9f0265840',
             'page_size': 1}
         list_response = self.lg.handle_request(
-            method='POST',
-            path='/ga4gh/dos/v1/dataobjects/list',
-            headers={'content-type': 'application/json'},
-            body=json.dumps(body))
+            method='GET',
+            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', body),
+            headers={}, body='')
         response_body = json.loads(list_response['body'])
         data_objects = response_body['data_objects']
 
         self.assertEquals(len(data_objects), 1)
-
         self.assertEquals(response_body['next_page_token'], '1')
 
         body = {
@@ -116,10 +117,9 @@ class TestApp(TestCase):
             'page_size': 1,
             'page_token': response_body['next_page_token']}
         list_response = self.lg.handle_request(
-            method='POST',
-            path='/ga4gh/dos/v1/dataobjects/list',
-            headers={'content-type': 'application/json'},
-            body=json.dumps(body))
+            method='GET',
+            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', body),
+            headers={}, body='')
         response_body = json.loads(list_response['body'])
         data_objects = response_body['data_objects']
 
@@ -232,10 +232,9 @@ class TestApp(TestCase):
             'alias': my_guid,
             'page_size': 10}
         list_response = self.lg.handle_request(
-            method='POST',
-            path='/ga4gh/dos/v1/dataobjects/list',
-            headers={'content-type': 'application/json'},
-            body=json.dumps(list_request))
+            method='GET',
+            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', list_request),
+            headers={}, body='')
         response_body = json.loads(list_response['body'])
         data_objects = response_body['data_objects']
         self.assertEquals(1, len(data_objects))
