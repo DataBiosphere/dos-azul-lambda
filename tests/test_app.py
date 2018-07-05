@@ -62,15 +62,15 @@ class TestApp(TestCase):
 
         :return:
         """
-        page_size = 10
+        pagesize = 10
         response = self.lg.handle_request(
             method='GET',
-            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', page_size=page_size),
+            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', pagesize=10),
             headers={}, body='')
 
         self.assertEquals(response['statusCode'], 200)
         response_body = json.loads(response['body'])
-        self.assertEquals(len(response_body['data_objects']), page_size)
+        self.assertEquals(len(response_body['data_objects']), pagesize)
 
     def test_get_data_object(self):
         """
