@@ -322,7 +322,7 @@ def swagger():
     :return:
     """
     # FIXME replace with one hosted here
-    req = requests.get("https://raw.githubusercontent.com/ga4gh/data-object-service-schemas/master/openapi/data_object_service.swagger.yaml")  # noqa
+    req = requests.get("https://ga4gh.github.io/data-object-service-schemas/swagger/data_object_service.swagger.yaml")  # NOQA
     swagger_dict = yaml.load(req.content)
 
     swagger_dict['basePath'] = '/api/ga4gh/dos/v1'
