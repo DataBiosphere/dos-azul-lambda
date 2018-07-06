@@ -164,8 +164,7 @@ def get_data_object(data_object_id):
     return {'data_object': safe_get_data_object(data_object_id)[0]}
 
 
-@app.route("{}/dataobjects/list".format(base_path),
-           methods=['POST'], cors=True)
+@app.route("{}/dataobjects".format(base_path), methods=['GET'], cors=True)
 def list_data_objects(**kwargs):
     """
     Page through the es_index and return data objects, respecting an
@@ -174,7 +173,7 @@ def list_data_objects(**kwargs):
     :param kwargs:
     :return: ListDataObjectsResponse
     """
-    req_body = app.current_request.json_body
+    req_body = app.current_request.query_params
     per_page = 10
     page_token = "0"
     if req_body and (req_body.get('page_size', None)):
