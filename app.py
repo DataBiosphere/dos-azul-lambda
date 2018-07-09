@@ -177,7 +177,7 @@ def list_data_objects(**kwargs):
     per_page = 10
     page_token = "0"
     if req_body and (req_body.get('page_size', None)):
-        per_page = req_body.get('page_size')
+        per_page = int(req_body.get('page_size'))
     if req_body and (req_body.get('page_token', None)):
         page_token = req_body.get('page_token')
     query = {'size': per_page + 1}
