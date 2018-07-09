@@ -94,36 +94,31 @@ class TestApp(TestCase):
         self.assertEquals(data_object['id'], data_object_id)
 
     def test_paging(self):
-        """
-        Demonstrates basic paging features.
+        """Demonstrates basic paging features."""
+        # Make a request that will return more than one data object
+        params = {
+            'method': 'GET',
+            'path': '/ga4gh/dos/v1/dataobjects',
+            'headers': {},
+            'body': '',
+        }
+        r = self.lg.handle_request(**params)
+        res = json.loads(r['body'])
+        self.assertTrue(len(res['data_objects']) > 1)
 
-        :return:
-        """
-        body = {
-            'alias': 'specimenUUID:d842b267-a154-5192-988b-b9f9f0265840',
-            'page_size': 1}
-        list_response = self.lg.handle_request(
-            method='GET',
-            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', body),
-            headers={}, body='')
-        response_body = json.loads(list_response['body'])
-        data_objects = response_body['data_objects']
+        # Now that we have a request that will return more than one data
+        # object, we can test and see if we can use paging to return only
+        # one object.
+        params['path'] += '?page_size=1'
+        r = self.lg.handle_request(**params)
+        res = json.loads(r['body'])
+        self.assertEqual(len(res['data_objects']), 1)
+        self.assertEqual(res['next_page_token'], '1')
 
-        self.assertEquals(len(data_objects), 1)
-        self.assertEquals(response_body['next_page_token'], '1')
-
-        body = {
-            'alias': 'specimenUUID:d842b267-a154-5192-988b-b9f9f0265840',
-            'page_size': 1,
-            'page_token': response_body['next_page_token']}
-        list_response = self.lg.handle_request(
-            method='GET',
-            path=self.get_query_url('/ga4gh/dos/v1/dataobjects', body),
-            headers={}, body='')
-        response_body = json.loads(list_response['body'])
-        data_objects = response_body['data_objects']
-
-        self.assertEquals(len(data_objects), 1)
+        # Test that page tokens work.
+        params['path'] += '&page_token=1'
+        r = self.lg.handle_request(**params)
+        self.assertEqual(len(res['data_objects']), 1)
 
     def test_update(self):
         """
