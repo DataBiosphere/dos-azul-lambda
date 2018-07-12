@@ -1,7 +1,9 @@
 import json
 import logging
+import time
 from unittest import TestCase
 import urllib
+import uuid
 
 from chalice.config import Config
 from chalice.local import LocalGateway
@@ -112,111 +114,103 @@ class TestApp(TestCase):
         r = self.make_request('GET', '/ga4gh/dos/v1/dataobjects?page_size=1&page_token=1')
         self.assertEqual(len(r['data_objects']), 1)
 
-    def test_update(self):
+    def test_update_unauthenticated(self):
+        """
+        Demonstrates how attempts to update a data object while not
+        properly authenticated will be refused.
+        """
+        # List all the data objects and pick a "random" one to test.
+        r = self.make_request('GET', '/ga4gh/dos/v1/dataobjects')
+        data_obj = r['data_objects'][1]
+
+        # Try and update it without specifying an auth token.auth
+        r = self.make_request('PUT',
+                              '/ga4gh/dos/v1/dataobjects/' + data_obj['id'],
+                              headers={'content-type': 'application/json'},
+                              body={'data_object': data_obj},
+                              expected_status=403)
+
+    def _test_alias(self, alias, expect_fail=False):
+        """
+        Helper test that demonstrates updating a data object with
+        a given alias.
+
+        :param bool expect_fail: expect that updating the alias will fail, and
+                                 stop once it does. This exists only for
+                                :meth:`test_update_protected_key`
+        """
+        # First, select a "random" object that we can test
+        body = self.make_request('GET', '/ga4gh/dos/v1/dataobjects')
+        data_object = body['data_objects'][9]
+        url = '/ga4gh/dos/v1/dataobjects/' + data_object['id']
+
+        # Try and update with no changes. The request is properly
+        # authenticated and should return HTTP 200.
+        params = {
+            'headers': {
+                'content-type': 'application/json',
+                'access_token': self.access_token
+            },
+            'body': {'data_object': data_object}
+        }
+        self.make_request('PUT', url, **params)
+
+        # Test adding an alias (acceptably unique to try
+        # retrieving the object by the alias)
+        data_object['aliases'].append(alias)
+
+        # Try and update, this time with a change.
+        params['body']['data_object'] = data_object
+        # This `expect_fail` thing feels kind of dirty, but it's more concise...
+        if expect_fail:
+            update_response = self.make_request('PUT', url, expected_status=400, **params)
+            return
+        update_response = self.make_request('PUT', url, **params)
+        self.assertEqual(data_object['id'], update_response['data_object_id'])
+
+        time.sleep(2)
+
+        # Test and see if the update took place by retrieving the object
+        # and checking its aliases
+        get_response = self.make_request('GET', url)
+        self.assertEqual(update_response['data_object_id'], get_response['data_object']['id'])
+        self.assertIn(alias, get_response['data_object']['aliases'])
+
+        # Testing the update again by using a DOS ListDataObjectsRequest
+        # to locate the object by its new alias.
+        list_request = {
+            'alias': alias,
+            # We know the alias is unique, so even though page_size > 1
+            # we expect only one result.
+            'page_size': 10
+        }
+        list_url = self.get_query_url('/ga4gh/dos/v1/dataobjects', list_request)
+        list_response = self.make_request('GET', list_url)
+        self.assertEqual(1, len(list_response['data_objects']))
+        self.assertIn(alias, list_response['data_objects'][0]['aliases'])
+
+        # Tear down and remove the test alias
+        params['body']['data_object']['aliases'].remove(alias)
+        self.make_request('PUT', url, **params)
+
+    def test_update_simple(self):
         """
         Demonstrates how updating a Data Object should work to
         include new fields. The lambda handles the conversion
         to the original document type.
         """
-        my_guid = 'doi:MY-IDENTIFIER'
-        # First get an object to update
+        self._test_alias('daltest:' + str(uuid.uuid1()))
 
-        data_object_id = "f4f437e8-dce2-4383-b99f-5d3da64e87a9"
-        url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object_id)
+    def test_update_ugly_alias(self):
+        """
+        Test with an 'ugly' alias to test alias key-value splitting
+        """
+        self._test_alias('daltest:abc:def:ghi' + str(uuid.uuid1()))
 
-        r, body = self.make_request('GET', '/ga4gh/dos/v1/dataobjects/' + data_object_id)
-        data_object = body['data_object']
-        # First we'll try to update something with no new
-        # information. Since it's an auth'ed endpoint, this
-        # should fail.
-
-        params = {
-            'headers': {
-                'content-type': 'applications/json'
-            },
-            'body': {
-                'data_object': data_object
-            },
-            'expected_status': 403
-        }
-        update_response = self.make_request('PUT', url, **params)
-
-        # Now we will set the headers for the remainder of
-        # the tests.
-
-        params['headers']['access_token'] = self.access_token
-        params['expected_status'] = 200
-        update_response = self.make_request('PUT', url, **params)
-
-        # Make sure it doesn't already include the GUID
-        self.assertNotIn(my_guid, data_object['aliases'])
-
-        # Next, we'll try to update with a "protected key", i.e.
-        # a value that has already been set on an item that is
-        # not in the list of safe keys.
-
-        data_object['aliases'].append('file_id:GARBAGEID')
-        params['body']['data_object'] = data_object
-        params['expected_status'] = 400
-        url = '/ga4gh/dos/v1/dataobjects/{}'.format(data_object['id'])
-        update_response = self.make_request('PUT', url, **params)
-
-        # Remove that "bad alias".
-        data_object['aliases'] = data_object['aliases'][:-1]
-
-        # Modify to include a GUID
-        data_object['aliases'].append(my_guid)
-
-        # Make an update request
-        params['body']['data_object'] = data_object
-        params['expected_status'] = 200
-        update_response = self.make_request('PUT', url, **params)
-        self.assertEqual(data_object['id'], update_response['data_object_id'])
-
-        import time
-        time.sleep(2)
-        # Now get it again to verify it is there
-        get_response = self.make_request('GET', url)
-        got_data_object = get_response['data_object']
-        self.assertEqual(update_response['data_object_id'], got_data_object['id'])
-        self.assertIn(my_guid, got_data_object['aliases'])
-
-        # MEAT AND POTATOES - now we actually use a DOS
-        # ListDataObjectsRequest to find our item by the identifier
-        # we provided.
-
-        list_request = {
-            'alias': my_guid,
-            'page_size': 10}
-        url = self.get_query_url('/ga4gh/dos/v1/dataobjects', list_request)
-        list_response = self.make_request('GET', url)
-        data_objects = list_response['data_objects']
-        self.assertEqual(1, len(data_objects))
-        listed_object = data_objects[0]
-        self.assertIn(my_guid, listed_object['aliases'])
-
-        # Lastly, modify the value so we can rerun tests on the
-        # same object, make it an ugly thing to test the alias
-        # key value splitting
-
-        ugly_alias = "doi:abc:def:ghi"
-        data_object['aliases'][-1] = ugly_alias
-        params['body']['data_object'] = data_object
-        update_response = self.make_request('PUT', url, **params)
-        print('UPDATED RESPONSE')
-        print(update_response)
-        self.assertEqual(
-            data_object['id'], update_response['data_object_id'])
-        time.sleep(2)
-
-        get_response = self.make_request('GET', url)
-        got_data_object = get_response['data_object']
-        print('GOT OBJECT')
-        print(got_data_object)
-        self.assertIn(ugly_alias, got_data_object['aliases'])
-        time.sleep(2)
-        # Now get it again to verify it is gone
-        self.make_request('GET', url, headers=params['headers'])
-        got_data_object = get_response['data_object']
-        self.assertEqual(update_response['data_object_id'], got_data_object['id'])
-        self.assertNotIn(my_guid, got_data_object['aliases'])
+    def test_update_protected_key(self):
+        """
+        Try to update a data object with a 'protected key', i.e. a value
+        that has already been set on an item that is not in the list of
+        safe keys.
+        """
+        self._test_alias('file_id:GARBAGEID', expect_fail=True)
