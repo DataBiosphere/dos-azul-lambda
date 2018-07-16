@@ -180,9 +180,8 @@ def list_data_objects(**kwargs):
     if req_body and req_body.get('alias', None):
         # We kludge on our own tag scheme
         alias = req_body.get('alias')
-        k = '{}.keyword'.format(alias.split(':')[0])
-        v = ":".join(alias.split(":")[1:])
-        query['query'] = {'match': {k: v}}
+        k, v = alias.split(':', 1)
+        query['query'] = {'match': {k + '.keyword': v}}
     resp = client.make_request(
         method='GET', path='/{}/_search'.format(es_index),
         data=json.dumps(query))
@@ -267,9 +266,7 @@ def update_data_object(data_object_id):
                 {'msg': 'Aliases must be namespaced by providing'
                         'a {key}:{value} structure'}, status_code=400)
 
-    new_tuples = map(
-        lambda x: [x.split(':')[0], ":".join(x.split(':')[1:])],
-        new_aliases)
+    new_tuples = map(lambda x: x.split(':', 1), new_aliases)
 
     # But first, to avoid overwriting existing keys, we check
     # against the contents of the source document.
