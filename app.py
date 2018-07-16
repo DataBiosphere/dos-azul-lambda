@@ -177,7 +177,7 @@ def list_data_objects(**kwargs):
     per_page = 10
     page_token = "0"
     if req_body and (req_body.get('page_size', None)):
-        per_page = req_body.get('page_size')
+        per_page = int(req_body.get('page_size'))
     if req_body and (req_body.get('page_token', None)):
         page_token = req_body.get('page_token')
     query = {'size': per_page + 1}
@@ -186,7 +186,7 @@ def list_data_objects(**kwargs):
     if req_body and req_body.get('alias', None):
         # We kludge on our own tag scheme
         alias = req_body.get('alias')
-        k = alias.split(":")[0]
+        k = '{}.keyword'.format(alias.split(':')[0])
         v = ":".join(alias.split(":")[1:])
         query['query'] = {'match': {k: v}}
     resp = client.make_request(
