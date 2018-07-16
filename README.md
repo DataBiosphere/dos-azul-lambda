@@ -25,7 +25,7 @@ following the [OpenAPI description](https://5ybh0f5iai.execute-api.us-west-2.ama
 
 ```
 # Will request the first page of Data Bundles from the service.
-curl -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' -d '{}' 'https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api/ga4gh/dos/v1/dataobjects/list'
+curl -X GET --header 'Content-Type: application/json' --header 'Accept: application/json' https://iub0o6mnng.execute-api.us-west-2.amazonaws.com/dev/ga4gh/dos/v1/dataobjects
 ```
 
 There is also a Python client available, that makes it easier to use the service from code.
@@ -34,8 +34,7 @@ There is also a Python client available, that makes it easier to use the service
 from ga4gh.dos.client import Client
 client = Client("https://5ybh0f5iai.execute-api.us-west-2.amazonaws.com/api")
 local_client = client.client
-models = client.models
-local_client.ListDataBundles(body={}).result()
+local_client.ListDataBundles().result()
 ```
 
 For more information refer to the [Data Object Service](https://github.com/ga4gh/data-object-service-schemas).
