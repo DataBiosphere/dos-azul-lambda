@@ -36,17 +36,12 @@ def azul_to_dos(azul):
 
 def check_auth():
     """
-    Execute during a request to return a boolean of whether
-    the request has the appropriate access_token in its headers.
-
-    :return:
+    Execute during a request to check the ``access_token`` key in the
+    request headers.
+    :return: True if ``access_token`` is valid, False otherwise
+    :rtype: bool
     """
-
-    headers = app.current_request.headers
-    match = False
-    if 'access_token' in headers.keys():
-        match = headers['access_token'] == access_token
-    return match
+    return app.current_request.headers.get('access_token', None) == access_token
 
 
 class ESConnection(AWSAuthConnection):
