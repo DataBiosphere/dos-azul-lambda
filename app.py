@@ -164,45 +164,35 @@ def list_data_objects(**kwargs):
     Page through the es_index and return data objects, respecting an
     alias or checksum request if it is made.
 
-    :param kwargs:
-    :return: ListDataObjectsResponse
+    :rtype: ListDataObjectsResponse
     """
-    req_body = app.current_request.query_params
-    per_page = 10
-    page_token = "0"
-    if req_body and (req_body.get('page_size', None)):
-        per_page = int(req_body.get('page_size'))
-    if req_body and (req_body.get('page_token', None)):
-        page_token = req_body.get('page_token')
+    req_body = app.current_request.query_params or {}
+    per_page = int(req_body.get('page_size', 10))
+    page_token = req_body.get('page_token', "0")
     query = {'size': per_page + 1}
     if page_token != "0":
         query['from'] = page_token
-    if req_body and req_body.get('alias', None):
+    if req_body.get('alias', None):
         # We kludge on our own tag scheme
-        alias = req_body.get('alias')
-        k, v = alias.split(':', 1)
+        k, v = req_body['alias'].split(':', 1)
         query['query'] = {'match': {k + '.keyword': v}}
-    resp = client.make_request(
-        method='GET', path='/{}/_search'.format(es_index),
-        data=json.dumps(query))
+    resp = client.make_request(method='GET', data=json.dumps(query),
+                               path='/{}/_search'.format(es_index))
     try:
         # The elasticsearch response includes the `hits` array.
         hits = json.loads(resp.read())['hits']['hits']
     except Exception:
         # Return error message with 400, Bad request
-        return Response({'msg': json.loads(resp.read())},
-                        status_code=400)
+        return Response({'msg': json.loads(resp.read())}, status_code=400)
     if len(hits) > per_page:
         next_page_token = str(int(page_token) + 1)
     else:
         next_page_token = None
     data_objects = map(lambda x: azul_to_dos(x['_source']), hits)
+    results = {'data_objects': data_objects[0:per_page]}
     if next_page_token:
-        return {
-            'data_objects': data_objects[0:per_page],
-            'next_page_token': next_page_token}
-    else:
-        return {'data_objects': data_objects[0:per_page]}
+        results['next_page_token'] = next_page_token
+    return results
 
 
 @app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
