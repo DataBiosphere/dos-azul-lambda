@@ -56,14 +56,13 @@ class ESConnection(AWSAuthConnection):
         self._set_auth_service_name('es')
 
     def _required_auth_capability(self):
-        return [
-         'hmac-v4']
+        return ['hmac-v4']
 
 
 # Ensure that you set 'host' below to the FQDN for YOUR
 # Elasticsearch service endpoint
 
-DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com'  # NOQA
+DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com'
 DEFAULT_REGION = 'us-west-2'
 DEFAULT_INDEX = 'fb_index'
 DEFAULT_DOCTYPE = 'meta'
@@ -239,16 +238,14 @@ def update_data_object(data_object_id):
     if app.current_request.json_body:
         update_body = app.current_request.json_body
     else:
-        return Response(
-                {'msg': 'Please add a data_object to '
-                        'in the body of your request'}, status_code=400)
+        return Response({'msg': 'Please add a data_object to the body of your request'},
+                        status_code=400)
 
     if update_body.get('data_object', None):
         update_data_object = update_body['data_object']
     else:
-        return Response(
-                {'msg': 'Please add a data_object to '
-                        'in the body of your request'}, status_code=400)
+        return Response({'msg': 'Please add a data_object to the body of your request'},
+                        status_code=400)
 
     new_aliases = filter(
         lambda x: x not in data_object['aliases'],
