@@ -1,0 +1,589 @@
+{
+  "db_index": {
+    "mappings": {
+      "databundle": {
+        "properties": {
+          "aliases": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "checksums": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "created": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "description": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "id": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "updated": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "version": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }
+        }
+      }
+    }, 
+    "settings": {
+      "analysis": {
+        "analyzer": {
+          "autocomplete": {
+            "filter": [
+              "lowercase", 
+              "autocomplete_filter"
+            ], 
+            "tokenizer": "keyword", 
+            "type": "custom"
+          }
+        }, 
+        "filter": {
+          "autocomplete_filter": {
+            "max_gram": 36, 
+            "min_gram": 1, 
+            "type": "ngram"
+          }
+        }
+      }, 
+      "number_of_shards": 1
+    }
+  }, 
+  "fb_index": {
+    "mappings": {
+      "meta": {
+        "dynamic_templates": [
+          {
+            "strings": {
+              "mapping": {
+                "analyzer": "autocomplete", 
+                "fields": {
+                  "keyword": {
+                    "ignore_above": 256, 
+                    "type": "keyword"
+                  }
+                }, 
+                "search_analyzer": "standard", 
+                "type": "text"
+              }, 
+              "match_mapping_type": "string"
+            }
+          }
+        ], 
+        "properties": {
+          "access": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "aliases": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "analysis_type": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "center_name": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "daltest": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "doi": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "donor": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "download_id": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "experimentalStrategy": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "fileMd5sum": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "fileSize": {
+            "type": "long"
+          }, 
+          "file_id": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "file_type": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "file_version": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "lastModified": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "metadataJson": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "program": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "project": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "redwoodDonorUUID": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "repoBaseUrl": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "repoCode": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "repoCountry": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "repoDataBundleId": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "repoName": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "repoOrg": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "repoType": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "sampleId": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "software": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "specimenUUID": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "specimen_type": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "study": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "submittedDonorId": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "submittedSampleId": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "submittedSpecimenId": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "submitterDonorPrimarySite": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "submitter_donor_id": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "title": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "urls": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "workflow": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }, 
+          "workflowVersion": {
+            "analyzer": "autocomplete", 
+            "fields": {
+              "keyword": {
+                "ignore_above": 256, 
+                "type": "keyword"
+              }
+            }, 
+            "search_analyzer": "standard", 
+            "type": "text"
+          }
+        }
+      }
+    }, 
+    "settings": {
+      "analysis": {
+        "analyzer": {
+          "autocomplete": {
+            "filter": [
+              "lowercase", 
+              "autocomplete_filter"
+            ], 
+            "tokenizer": "keyword", 
+            "type": "custom"
+          }
+        }, 
+        "filter": {
+          "autocomplete_filter": {
+            "max_gram": 36, 
+            "min_gram": 1, 
+            "type": "ngram"
+          }
+        }
+      }, 
+      "number_of_shards": 1
+    }
+  }
+}
