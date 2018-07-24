@@ -3,6 +3,9 @@ python:
 - '2.7'
 env:
 - ES_HOST="search-dos-azul-test-a998691e-uuzze4esxbslgnc4i3pnbzjpq4.us-west-2.es.amazonaws.com" TEST_ES_DOMAIN="dos-azul-test-a998691e"
+branches:
+  only:
+  - master
 before_install:
 - sudo apt-get update -qq
 - pip install -r dev-requirements.txt
