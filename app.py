@@ -21,7 +21,7 @@ def azul_to_dos(azul):
     """
     data_object = {}
     data_object['id'] = azul['file_id']
-    data_object['urls'] = [{'url': url for url in azul['urls']}]
+    data_object['urls'] = [{'url': url} for url in azul['urls']]
     data_object['version'] = azul['file_version']
     data_object['size'] = str(azul.get('fileSize', ""))
     data_object['checksums'] = [
