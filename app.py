@@ -36,6 +36,29 @@ def azul_to_obj(result):
     return data_object
 
 
+def azul_to_bdl(result):
+    """
+    Takes an Azul ElasticSearch result and converts it to a DOS data
+    bundle.
+
+    :param result: the ElasticSearch result dictionary
+    :return: DataBundle
+    """
+    azul = result['_source']
+    bundle = {
+        'id': azul['id'],
+        'version': azul['version'],
+        'checksums': [{'checksum': c.split(':')[0], 'type': c.split(':')[1]} for c in azul['checksums']],
+        'updated': azul['updated'] + 'Z',
+        'created': azul['created'] + 'Z',
+        'descrption': azul.get('description', ''),
+    }
+    # remove multiply valued items before we move into aliases
+    del azul['checksums']
+    bundle['aliases'] = ['{}:{}'.format(k, v) for k, v in azul.items()]
+    return bundle
+
+
 def check_auth():
     """
     Execute during a request to check the ``access_token`` key in the
@@ -65,10 +88,12 @@ DEFAULT_ACCESS_TOKEN = 'f4ce9d3d23f4ac9dfdc3c825608dc660'
 
 INDEXES = {
     'data_obj': os.environ.get('DATA_OBJ_INDEX', 'fb_index'),
+    'data_bdl': os.environ.get('DATA_OBJ_INDEX', 'db_index'),
 }
 
 DOCTYPES = {
     'data_obj': os.environ.get('DATA_OBJ_DOCTYPE', 'meta'),
+    'data_bdl': os.environ.get('DATA_OBJ_DOCTYPE', 'databundle'),
 }
 
 es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
@@ -170,7 +195,7 @@ def azul_match_alias(index, key, val, from_=None, size=10):
 def get_data_object(data_object_id):
     """
     Gets a data object by file identifier by making a query against the
-    configure data object index and returns the first matching file.
+    configured data object index and returns the first matching file.
 
     :param data_object_id: the id of the data object
     :raises LookupError: if no data object is found for the given query
@@ -186,6 +211,28 @@ def get_data_object(data_object_id):
     except LookupError:
         return Response({'msg': "Data object not found."}, status_code=404)
     return Response({'data_object': data_obj}, status_code=200)
+
+
+@app.route(base_path + '/databundles/{data_bundle_id}', methods=['GET'], cors=True)
+def get_data_bundle(data_bundle_id):
+    """
+    Gets a data bundle by its identifier by making a query against the
+    configured data bundle index. Returns the first matching file.
+
+    :param data_bundle_id: the id of the data bundle
+    :raises LookupError: if no data bundle is found for the given query
+    :rtype: DataBundle
+    """
+    try:
+        data_bdl = azul_to_bdl(azul_match_field(index=INDEXES['data_bdl'],
+                                                key='id', val=data_bundle_id))
+        # Double check to verify identity (since `file_id` is an analyzed field)
+        if data_bdl['id'] != data_bundle_id:
+            raise LookupError
+    # azul_match_field will also raise a LookupError if no results are returned
+    except LookupError:
+        return Response({'msg': "Data bundle not found."}, status_code=404)
+    return Response({'data_bundle': data_bdl}, status_code=200)
 
 
 @app.route(base_path + '/dataobjects', methods=['GET'], cors=True)
@@ -214,6 +261,37 @@ def list_data_objects(**kwargs):
         next_page_token = None
     data_objects = map(azul_to_obj, results)
     response = {'data_objects': data_objects[0:per_page]}
+    if next_page_token:
+        response['next_page_token'] = next_page_token
+    return response
+
+
+@app.route(base_path + '/databundles', methods=['GET'], cors=True)
+def list_data_bundles(**kwargs):
+    """
+    Page through the data bundles index and return data bundles,
+    respecting an alias or checksum request if it is made.
+
+    :rtype: ListDataBundlesResponse
+    """
+    req_body = app.current_request.query_params or {}
+    page_token = req_body.get('page_token', 0)
+    per_page = int(req_body.get('page_size', 10))
+    if req_body.get('alias', None):
+        # We kludge on our own tag scheme
+        k, v = req_body['alias'].split(':', 1)
+        results = azul_match_alias(index=INDEXES['data_bdl'],
+                                   key=k, val=v, size=per_page + 1,
+                                   from_=page_token if page_token != 0 else None)
+    else:
+        results = es_query(query={}, index=INDEXES['data_bdl'], size=per_page + 1)
+
+    if len(results) > per_page:
+        next_page_token = str(int(page_token) + 1)
+    else:
+        next_page_token = None
+    data_objects = map(azul_to_bdl, results)
+    response = {'data_bundles': data_objects[0:per_page]}
     if next_page_token:
         response['next_page_token'] = next_page_token
     return response
