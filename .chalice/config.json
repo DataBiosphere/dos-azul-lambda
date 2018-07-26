@@ -10,10 +10,10 @@
         "ENV": "DEV"
       }
     },
-    "staging": {
-      "api_gateway_stage": "staging",
+    "commonsstaging": {
+      "api_gateway_stage": "commonsstaging",
       "environment_variables": {
-         "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
+         "ES_HOST": "search-dss-azul-commonsstaging-ych2wypqhe6mqqajardlgexppy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2"
       },
       "tags": {
