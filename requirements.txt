@@ -1,6 +1,6 @@
 chalice==1.2.2
 requests
-PyYAML
+PyYAML==4.2b4
 boto
 botocore
 #ga4gh-dos-schemas
