@@ -4,7 +4,7 @@ import json
 from chalice import Chalice, Response
 from boto.connection import AWSAuthConnection
 import requests
-import yaml
+#import yaml
 
 # If a key already exists on a document, it won't be
 # modified by an UpdateObjectRequest, unless the key
@@ -293,16 +293,3 @@ def update_data_object(data_object_id):
         'es_response': es_update_response_body}
 
 
-@app.route('/swagger.json', cors=True)
-def swagger():
-    """
-    An endpoint for returning the swagger api description.
-
-    :return:
-    """
-    # FIXME replace with one hosted here
-    req = requests.get("https://raw.githubusercontent.com/ga4gh/data-object-service-schemas/master/openapi/data_object_service.swagger.yaml")  # NOQA
-    swagger_dict = yaml.load(req.content)
-
-    swagger_dict['basePath'] = '/api/ga4gh/dos/v1'
-    return swagger_dict
