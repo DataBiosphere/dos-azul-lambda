@@ -6,11 +6,6 @@ from boto.connection import AWSAuthConnection
 import requests
 import yaml
 
-# If a key already exists on a document, it won't be
-# modified by an UpdateObjectRequest, unless the key
-# is in this list. See tests.
-safe_keys = ['doi']
-
 
 def azul_to_obj(result):
     """
@@ -28,9 +23,10 @@ def azul_to_obj(result):
     data_object['size'] = str(azul.get('fileSize', ''))
     data_object['checksums'] = [
         {'checksum': azul['fileMd5sum'], 'type': 'md5'}]
-    # remove multiply valued items before we move into aliases
+    data_object['aliases'] = azul['aliases']
+    # remove multiply valued items before we finish aliases
     del azul['urls']
-    data_object['aliases'] = ["{}:{}".format(k, azul[k]) for k in azul.keys()]
+    data_object['aliases'].extend(["{}:{}".format(k, azul[k]) for k in azul.keys()])
     data_object['updated'] = azul['lastModified'] + 'Z'
     data_object['name'] = azul['title']
     return data_object
@@ -169,7 +165,7 @@ def azul_match_field(index, key, val, size=1):
     return results[0]
 
 
-def azul_match_alias(index, key, val, from_=None, size=10):
+def azul_match_alias(index, alias, from_=None, size=10):
     """
     Wrapper function around :func:`es_query`. By default, this function
     will return more than one result (intended for usage in ListDataObjects,
@@ -182,7 +178,7 @@ def azul_match_alias(index, key, val, from_=None, size=10):
     :raises LookupError: if no results are returned
     :rtype: list
     """
-    dsl = {'match': {key + '.keyword': val}}
+    dsl = {'term': {'aliases.keyword': alias}}
     if from_:
         dsl['from'] = from_
     results = es_query(index=index, query=dsl, size=size)
@@ -247,10 +243,8 @@ def list_data_objects(**kwargs):
     page_token = req_body.get('page_token', 0)
     per_page = int(req_body.get('page_size', 10))
     if req_body.get('alias', None):
-        # We kludge on our own tag scheme
-        k, v = req_body['alias'].split(':', 1)
         results = azul_match_alias(index=INDEXES['data_obj'],
-                                   key=k, val=v, size=per_page + 1,
+                                   alias=req_body['alias'], size=per_page + 1,
                                    from_=page_token if page_token != 0 else None)
     else:
         results = es_query(query={}, index=INDEXES['data_obj'], size=per_page + 1)
@@ -278,10 +272,8 @@ def list_data_bundles(**kwargs):
     page_token = req_body.get('page_token', 0)
     per_page = int(req_body.get('page_size', 10))
     if req_body.get('alias', None):
-        # We kludge on our own tag scheme
-        k, v = req_body['alias'].split(':', 1)
         results = azul_match_alias(index=INDEXES['data_bdl'],
-                                   key=k, val=v, size=per_page + 1,
+                                   alias=req_body['alias'], size=per_page + 1,
                                    from_=page_token if page_token != 0 else None)
     else:
         results = es_query(query={}, index=INDEXES['data_bdl'], size=per_page + 1)
@@ -347,40 +339,7 @@ def update_data_object(data_object_id):
     data_object['aliases'] = data_object['aliases'] + new_aliases
 
     es_id = source['_id']
-
-    # It is an implementation detail of this DOS that aliases
-    # are namespaced to provide a categorical discovery
-    # process.
-
-    # We are expecting string keys as aliases, so we can add
-    # them if they are not already present.
-
-    for alias in new_aliases:
-        if ':' not in alias:
-            return Response(
-                {'msg': 'Aliases must be namespaced by providing'
-                        'a {key}:{value} structure'}, status_code=400)
-
-    new_tuples = map(lambda x: x.split(':', 1), new_aliases)
-
-    # But first, to avoid overwriting existing keys, we check
-    # against the contents of the source document.
-
-    existing_keys = source['_source'].keys()
-
-    for new_tuple in new_tuples:
-        if new_tuple[0] in existing_keys and new_tuple[0] not in safe_keys:
-            return Response(
-                {'msg': 'Existing keys can\'t be overwritten.'
-                        'Please check the alias {} is not already '
-                        'in the source document.'.format(new_tuple)},
-                status_code=400)
-
-    # Now that we believe we are not overwriting an existing
-    # key and that we have the source document, we can
-    # attempt to perform the update.
-
-    updated_fields = {x[0]: x[1] for x in new_tuples}
+    updated_fields = {'aliases': update_data_object['aliases']}
 
     path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], es_id)
     es_update_response = client.make_request(method='POST', path=path,

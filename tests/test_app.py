@@ -142,15 +142,11 @@ class TestApp(TestCase):
                               body={'data_object': data_obj},
                               expected_status=403)
 
-    def _test_alias(self, alias, expect_fail=False):
+    def test_alias_update(self):
         """
-        Helper test that demonstrates updating a data object with
-        a given alias.
-
-        :param bool expect_fail: expect that updating the alias will fail, and
-                                 stop once it does. This exists only for
-                                :meth:`test_update_protected_key`
+        Demonstrates updating a data object with a given alias.
         """
+        alias = 'daltest:' + str(uuid.uuid1())
         # First, select a "random" object that we can test
         body = self.make_request('GET', '/ga4gh/dos/v1/dataobjects')
         data_object = body['data_objects'][9]
@@ -173,10 +169,6 @@ class TestApp(TestCase):
 
         # Try and update, this time with a change.
         params['body']['data_object'] = data_object
-        # This `expect_fail` thing feels kind of dirty, but it's more concise...
-        if expect_fail:
-            update_response = self.make_request('PUT', url, expected_status=400, **params)
-            return
         update_response = self.make_request('PUT', url, **params)
         self.assertEqual(data_object['id'], update_response['data_object_id'])
 
@@ -204,25 +196,3 @@ class TestApp(TestCase):
         # Tear down and remove the test alias
         params['body']['data_object']['aliases'].remove(alias)
         self.make_request('PUT', url, **params)
-
-    def test_update_simple(self):
-        """
-        Demonstrates how updating a Data Object should work to
-        include new fields. The lambda handles the conversion
-        to the original document type.
-        """
-        self._test_alias('daltest:' + str(uuid.uuid1()))
-
-    def test_update_ugly_alias(self):
-        """
-        Test with an 'ugly' alias to test alias key-value splitting
-        """
-        self._test_alias('daltest:abc:def:ghi' + str(uuid.uuid1()))
-
-    def test_update_protected_key(self):
-        """
-        Try to update a data object with a 'protected key', i.e. a value
-        that has already been set on an item that is not in the list of
-        safe keys.
-        """
-        self._test_alias('file_id:GARBAGEID', expect_fail=True)
