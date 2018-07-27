@@ -89,12 +89,12 @@ DEFAULT_ACCESS_TOKEN = 'f4ce9d3d23f4ac9dfdc3c825608dc660'
 
 INDEXES = {
     'data_obj': os.environ.get('DATA_OBJ_INDEX', 'fb_index'),
-    'data_bdl': os.environ.get('DATA_OBJ_INDEX', 'db_index'),
+    'data_bdl': os.environ.get('DATA_BDL_INDEX', 'db_index'),
 }
 
 DOCTYPES = {
     'data_obj': os.environ.get('DATA_OBJ_DOCTYPE', 'meta'),
-    'data_bdl': os.environ.get('DATA_OBJ_DOCTYPE', 'databundle'),
+    'data_bdl': os.environ.get('DATA_BDL_DOCTYPE', 'databundle'),
 }
 
 es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
