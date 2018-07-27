@@ -62,7 +62,7 @@ class TestApp(TestCase):
         Tests the basic access_token authentication method.
         """
         # If we don't provide a valid access token, the query should fail.
-        r = self.make_request('GET', '/test_token')
+        r = self.make_request('GET', '/test_token', expected_status=401)
         self.assertFalse(r['authorized'])
 
         # If we provide a valid access token, the query should succeed.

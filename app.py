@@ -120,10 +120,9 @@ def test_token():
     A convenience endpoint for testing whether an access token
     is active or not. Will return a JSON with a key `authorized`
     and a boolean regarding the key's value.
-
-    :return:
     """
-    return {'authorized': check_auth()}
+    body = {'authorized': check_auth()}
+    return Response(body, status_code=200 if body['authorized'] else 401)
 
 
 def es_query(query, index, size):
