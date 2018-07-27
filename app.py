@@ -24,9 +24,6 @@ def azul_to_obj(result):
     data_object['checksums'] = [
         {'checksum': azul['fileMd5sum'], 'type': 'md5'}]
     data_object['aliases'] = azul['aliases']
-    # remove multiply valued items before we finish aliases
-    del azul['urls']
-    data_object['aliases'].extend(["{}:{}".format(k, azul[k]) for k in azul.keys()])
     data_object['updated'] = azul['lastModified'] + 'Z'
     data_object['name'] = azul['title']
     return data_object
