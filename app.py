@@ -178,10 +178,7 @@ def azul_match_alias(index, alias, from_=None, size=10):
     dsl = {'term': {'aliases.keyword': alias}}
     if from_:
         dsl['from'] = from_
-    results = es_query(index=index, query=dsl, size=size)
-    if len(results) < 1:
-        raise LookupError("Query returned no results")
-    return results
+    return es_query(index=index, query=dsl, size=size)
 
 
 @app.route(base_path + '/dataobjects/{data_object_id}', methods=['GET'], cors=True)

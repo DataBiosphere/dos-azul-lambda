@@ -142,6 +142,17 @@ class TestApp(TestCase):
                               body={'data_object': data_obj},
                               expected_status=403)
 
+    def test_nonexist_alias(self):
+        """
+        Test to ensure that looking up a nonexistent alias returns an
+        empty list.
+        """
+        alias = str(uuid.uuid1())
+        body = self.make_request('GET', '/ga4gh/dos/v1/dataobjects?alias=' + alias)
+        self.assertEqual(len(body['data_objects']), 0)
+        body = self.make_request('GET', '/ga4gh/dos/v1/databundles?alias=' + alias)
+        self.assertEqual(len(body['data_bundles']), 0)
+
     def test_alias_update(self):
         """
         Demonstrates updating a data object with a given alias.
