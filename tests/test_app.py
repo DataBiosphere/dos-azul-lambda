@@ -8,16 +8,17 @@ import uuid
 from chalice.config import Config
 from chalice.local import LocalGateway
 
-from app import app
+from app import app, access_token
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
 class TestApp(TestCase):
-    def setUp(self):
-        self.lg = LocalGateway(app, Config())
-        self.access_token = "f4ce9d3d23f4ac9dfdc3c825608dc660"
+    @classmethod
+    def setUpClass(cls):
+        cls.lg = LocalGateway(app, Config())
+        cls.access_token = access_token
 
     def make_request(self, meth, path, headers={}, body=None, expected_status=200):
         """
@@ -94,6 +95,17 @@ class TestApp(TestCase):
         r = self.make_request('GET', '/ga4gh/dos/v1/dataobjects/' + data_object_1['id'])
         data_object_2 = r['data_object']
         self.assertEqual(data_object_1, data_object_2)
+
+    def test_get_data_bundle(self):
+        """
+        Lists data bundles and then gets one by ID.
+        """
+        # List all the data objects so we can pick one to test.
+        r = self.make_request('GET', '/ga4gh/dos/v1/databundles')
+        data_bundle_1 = r['data_bundles'][0]
+        r = self.make_request('GET', '/ga4gh/dos/v1/databundles/' + data_bundle_1['id'])
+        data_bundle_2 = r['data_bundle']
+        self.assertEqual(data_bundle_1, data_bundle_2)
 
     def test_paging(self):
         """

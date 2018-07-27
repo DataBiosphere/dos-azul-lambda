@@ -12,18 +12,20 @@ import yaml
 safe_keys = ['doi']
 
 
-def azul_to_dos(azul):
+def azul_to_obj(result):
     """
-    Takes an azul document and converts it to a Data Object.
+    Takes an Azul ElasticSearch result and converts it to a DOS data
+    object.
 
-    :param azul:
-    :return: Dictionary in DOS Schema
+    :param result: the ElasticSearch result dictionary
+    :return: DataObject
     """
+    azul = result['_source']
     data_object = {}
     data_object['id'] = azul['file_id']
     data_object['urls'] = [{'url': url} for url in azul['urls']]
     data_object['version'] = azul['file_version']
-    data_object['size'] = str(azul.get('fileSize', ""))
+    data_object['size'] = str(azul.get('fileSize', ''))
     data_object['checksums'] = [
         {'checksum': azul['fileMd5sum'], 'type': 'md5'}]
     # remove multiply valued items before we move into aliases
@@ -32,6 +34,30 @@ def azul_to_dos(azul):
     data_object['updated'] = azul['lastModified'] + 'Z'
     data_object['name'] = azul['title']
     return data_object
+
+
+def azul_to_bdl(result):
+    """
+    Takes an Azul ElasticSearch result and converts it to a DOS data
+    bundle.
+
+    :param result: the ElasticSearch result dictionary
+    :return: DataBundle
+    """
+    azul = result['_source']
+    bundle = {
+        'id': azul['id'],
+        'version': azul['version'],
+        'checksums': [{'checksum': c.split(':')[0], 'type': c.split(':')[1]} for c in azul['checksums']],
+        'updated': azul['updated'] + 'Z',
+        'created': azul['created'] + 'Z',
+        'descrption': azul.get('description', ''),
+        'data_object_ids': azul['data_object_ids'],
+    }
+    # remove multiply valued items before we move into aliases
+    del azul['checksums']
+    bundle['aliases'] = ['{}:{}'.format(k, v) for k, v in azul.items()]
+    return bundle
 
 
 def check_auth():
@@ -59,14 +85,20 @@ class ESConnection(AWSAuthConnection):
 
 DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com'
 DEFAULT_REGION = 'us-west-2'
-DEFAULT_INDEX = 'fb_index'
-DEFAULT_DOCTYPE = 'meta'
 DEFAULT_ACCESS_TOKEN = 'f4ce9d3d23f4ac9dfdc3c825608dc660'
 
-es_index = os.environ.get('ES_INDEX', DEFAULT_INDEX)
+INDEXES = {
+    'data_obj': os.environ.get('DATA_OBJ_INDEX', 'fb_index'),
+    'data_bdl': os.environ.get('DATA_BDL_INDEX', 'db_index'),
+}
+
+DOCTYPES = {
+    'data_obj': os.environ.get('DATA_OBJ_DOCTYPE', 'meta'),
+    'data_bdl': os.environ.get('DATA_BDL_DOCTYPE', 'databundle'),
+}
+
 es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
 es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
-es_doctype = os.environ.get('ES_DOCTYPE', DEFAULT_DOCTYPE)
 access_token = os.environ.get('ACCESS_KEY', DEFAULT_ACCESS_TOKEN)
 client = ESConnection(
     region=es_region, host=es_host, is_secure=False)
@@ -94,105 +126,176 @@ def test_token():
     return {'authorized': check_auth()}
 
 
-def safe_get_data_object(data_object_id):
+def es_query(query, index, size):
     """
-    Implements a guarded attempt to get a Data Object by identifier,
-    return responses to the client as necessary.
+    Queries the configured ElasticSearch instance and returns the
+    results as a list of dictionaries
 
-    :param data_object_id:
-    :return: Tuple of data_object and source document
+    :param dict query: the ElasticSearch DSL query, as it would appear under
+                       the 'query' key of the request body
+    :param str index: the name of the index to query
+    :param int size: the amount of results to return
+    :raises RuntimeError: if the response from the ElasticSearch instance
+                          loads successfully but can't be understood by
+                          dos-azul-lambda
+    :rtype: list
     """
-    query = {
-        'query':
-            {'bool': {'must': {'term': {'file_id': data_object_id}}}}}
-    response = client.make_request(
-        method='GET',
-        path='/{}/_search'.format(es_index),
-        data=json.dumps(query))
+    dsl = {'size': size, 'query': query}
+    query = client.make_request(method='GET', data=json.dumps(dsl),
+                                path='/{index}/_search'.format(index=index))
+    response = json.loads(query.read())
     try:
-        es_response = json.loads(response.read())
-    except Exception as e:
-        # Return error message with 400, Bad request
-        return Response({'msg': str(e)},
-                        status_code=400)
+        hits = response['hits']['hits']
+    except KeyError:
+        raise RuntimeError("ElasticSearch returned an unexpected response")
 
-    try:
-        hits = es_response['hits']['hits']
-    except Exception as e:
-        return Response(
-            {"msg": json.loads(response.read())},
-            status_code=400)
-
-    if len(hits) == 0:
-        return Response(
-            {"msg": "{} was not found".format(data_object_id)},
-            status_code=404)
-    else:
-        # FIXME we just take the first
-        hit = hits[0]
-    try:
-        data_object = azul_to_dos(hit['_source'])
-    except Exception as e:
-        return Response({"msg": str(e)}, status_code=400)
-
-    # FIXME hack to guarantee identity since `file_id` is an analyzed field
-    if data_object['id'] != data_object_id:
-        return Response(
-            {"msg": "{} was not found".format(data_object_id)},
-            status_code=400)
-
-    return data_object, hit
+    return hits
 
 
-@app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
-           methods=['GET'], cors=True)
+def azul_match_field(index, key, val, size=1):
+    """
+    Wrapper function around :func:`es_query`. Should be used for queries
+    where you expect only one result (e.g. GetDataBundle).
+    :param str index: the name of the index to query
+    :param str key: the key of the field to match against
+    :param str val: the value of the field to match against
+    :param int size: the amount of results to return
+    :raises LookupError: if no results are returned
+    :rtype: :class:`AzulDocument`
+    """
+    results = es_query(index=index, size=size,
+                       query={'bool': {'must': {'term': {key: val}}}})
+    if len(results) < 1:
+        raise LookupError("Query returned no results")
+    return results[0]
+
+
+def azul_match_alias(index, key, val, from_=None, size=10):
+    """
+    Wrapper function around :func:`es_query`. By default, this function
+    will return more than one result (intended for usage in ListDataObjects,
+    etc.
+    :param str index: the name of the index to query
+    :param str key: the key of the alias to match against
+    :param str val: the value of the alias to match against
+    :param str from_: page_token
+    :param int size: the amount of results to return
+    :raises LookupError: if no results are returned
+    :rtype: list
+    """
+    dsl = {'match': {key + '.keyword': val}}
+    if from_:
+        dsl['from'] = from_
+    results = es_query(index=index, query=dsl, size=size)
+    if len(results) < 1:
+        raise LookupError("Query returned no results")
+    return results
+
+
+@app.route(base_path + '/dataobjects/{data_object_id}', methods=['GET'], cors=True)
 def get_data_object(data_object_id):
     """
-    Gets a Data Object by file identifier by making a query
-    against the azul-index and returning the first matching
-    file.
+    Gets a data object by file identifier by making a query against the
+    configured data object index and returns the first matching file.
 
-    :param kwargs:
-    :return:
+    :param data_object_id: the id of the data object
+    :raises LookupError: if no data object is found for the given query
+    :rtype: DataObject
     """
-    return {'data_object': safe_get_data_object(data_object_id)[0]}
+    try:
+        data_obj = azul_to_obj(azul_match_field(index=INDEXES['data_obj'],
+                                                key='file_id', val=data_object_id))
+        # Double check to verify identity (since `file_id` is an analyzed field)
+        if data_obj['id'] != data_object_id:
+            raise LookupError
+    # azul_match_field will also raise a LookupError if no results are returned
+    except LookupError:
+        return Response({'msg': "Data object not found."}, status_code=404)
+    return Response({'data_object': data_obj}, status_code=200)
 
 
-@app.route("{}/dataobjects".format(base_path), methods=['GET'], cors=True)
+@app.route(base_path + '/databundles/{data_bundle_id}', methods=['GET'], cors=True)
+def get_data_bundle(data_bundle_id):
+    """
+    Gets a data bundle by its identifier by making a query against the
+    configured data bundle index. Returns the first matching file.
+
+    :param data_bundle_id: the id of the data bundle
+    :raises LookupError: if no data bundle is found for the given query
+    :rtype: DataBundle
+    """
+    try:
+        data_bdl = azul_to_bdl(azul_match_field(index=INDEXES['data_bdl'],
+                                                key='id', val=data_bundle_id))
+        # Double check to verify identity (since `file_id` is an analyzed field)
+        if data_bdl['id'] != data_bundle_id:
+            raise LookupError
+    # azul_match_field will also raise a LookupError if no results are returned
+    except LookupError:
+        return Response({'msg': "Data bundle not found."}, status_code=404)
+    return Response({'data_bundle': data_bdl}, status_code=200)
+
+
+@app.route(base_path + '/dataobjects', methods=['GET'], cors=True)
 def list_data_objects(**kwargs):
     """
-    Page through the es_index and return data objects, respecting an
-    alias or checksum request if it is made.
+    Page through the data objects index and return data objects,
+    respecting an alias or checksum request if it is made.
 
     :rtype: ListDataObjectsResponse
     """
     req_body = app.current_request.query_params or {}
+    page_token = req_body.get('page_token', 0)
     per_page = int(req_body.get('page_size', 10))
-    page_token = req_body.get('page_token', "0")
-    query = {'size': per_page + 1}
-    if page_token != "0":
-        query['from'] = page_token
     if req_body.get('alias', None):
         # We kludge on our own tag scheme
         k, v = req_body['alias'].split(':', 1)
-        query['query'] = {'match': {k + '.keyword': v}}
-    resp = client.make_request(method='GET', data=json.dumps(query),
-                               path='/{}/_search'.format(es_index))
-    try:
-        # The elasticsearch response includes the `hits` array.
-        hits = json.loads(resp.read())['hits']['hits']
-    except Exception:
-        # Return error message with 400, Bad request
-        return Response({'msg': json.loads(resp.read())}, status_code=400)
-    if len(hits) > per_page:
+        results = azul_match_alias(index=INDEXES['data_obj'],
+                                   key=k, val=v, size=per_page + 1,
+                                   from_=page_token if page_token != 0 else None)
+    else:
+        results = es_query(query={}, index=INDEXES['data_obj'], size=per_page + 1)
+
+    if len(results) > per_page:
         next_page_token = str(int(page_token) + 1)
     else:
         next_page_token = None
-    data_objects = map(lambda x: azul_to_dos(x['_source']), hits)
-    results = {'data_objects': data_objects[0:per_page]}
+    data_objects = map(azul_to_obj, results)
+    response = {'data_objects': data_objects[0:per_page]}
     if next_page_token:
-        results['next_page_token'] = next_page_token
-    return results
+        response['next_page_token'] = next_page_token
+    return response
+
+
+@app.route(base_path + '/databundles', methods=['GET'], cors=True)
+def list_data_bundles(**kwargs):
+    """
+    Page through the data bundles index and return data bundles,
+    respecting an alias or checksum request if it is made.
+
+    :rtype: ListDataBundlesResponse
+    """
+    req_body = app.current_request.query_params or {}
+    page_token = req_body.get('page_token', 0)
+    per_page = int(req_body.get('page_size', 10))
+    if req_body.get('alias', None):
+        # We kludge on our own tag scheme
+        k, v = req_body['alias'].split(':', 1)
+        results = azul_match_alias(index=INDEXES['data_bdl'],
+                                   key=k, val=v, size=per_page + 1,
+                                   from_=page_token if page_token != 0 else None)
+    else:
+        results = es_query(query={}, index=INDEXES['data_bdl'], size=per_page + 1)
+
+    if len(results) > per_page:
+        next_page_token = str(int(page_token) + 1)
+    else:
+        next_page_token = None
+    data_objects = map(azul_to_bdl, results)
+    response = {'data_bundles': data_objects[0:per_page]}
+    if next_page_token:
+        response['next_page_token'] = next_page_token
+    return response
 
 
 @app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
@@ -208,13 +311,16 @@ def update_data_object(data_object_id):
     # Before anything, make sure they are allowed to make the
     # modification.
     if not check_auth():
-        return Response({'msg': 'Not authorized to access '
-                                'this service. Set the '
-                                'access_token in request '
-                                'headers.'}, status_code=403)
+        return Response({'msg': 'Not authorized to access this service. '
+                                'Did you set access_token in the request'
+                                ' headers?'}, status_code=403)
 
     # First try to get the Object specified
-    data_object, source = safe_get_data_object(data_object_id)
+    try:
+        source = azul_match_field(index=INDEXES['data_obj'], key='file_id', val=data_object_id)
+    except LookupError:
+        return Response({'msg': "Data object not found."}, status_code=404)
+    data_object = azul_to_obj(source)
 
     # Now check to see the contents don't already contain
     # any aliases we want to add.
@@ -277,10 +383,9 @@ def update_data_object(data_object_id):
 
     updated_fields = {x[0]: x[1] for x in new_tuples}
 
-    es_update_response = client.make_request(
-        method='POST', path='/{}/{}/{}/_update'.format(
-            es_index, es_doctype, es_id),
-        data=json.dumps({'doc': updated_fields}))
+    path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], es_id)
+    es_update_response = client.make_request(method='POST', path=path,
+                                             data=json.dumps({'doc': updated_fields}))
 
     es_update_response_body = json.loads(es_update_response.read())
 

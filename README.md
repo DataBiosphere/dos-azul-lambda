@@ -167,6 +167,31 @@ Assuming your AWS credentials are set up properly to access the Elastic Search
 domain, you will see a few tests pass that demonstrate the List and Get
 features of the DOS endpoint.
 
+
+#### Configuration
+
+dos-azul-lambda can be configured by setting a number of environment variables:
+
+* Set `DATA_OBJ_INDEX` to override the name of the ElasticSearch index to query
+  for data objects. By default, this is `fb_index`.
+* Set `DATA_BDL_INDEX` to override the name of the ElasticSearch index to query
+  for data bundles. By default, this is `db_index`.
+* Set `DATA_OBJ_INDEX` to override the name of the ElasticSearch document type
+  that dos-azul-lambda should expect to correspond with `DATA_OBJ_INDEX`. By
+  default, this is `meta`.
+* Set `DATA_BDL_INDEX` to override the name of the ElasticSearch document type
+  that dos-azul-lambda should expect to correspond with `DATA_BDL_INDEX`. By
+  default, this is `databundle`.
+* Set `ES_HOST` to override the hostname of the ElasticSearch instance. By
+  default, this points to the `dss-azul-commons` ElasticSearch instance. This
+  variable should be specified without the protocol (i.e. without a leading
+  `http://` or `https://`).
+* Set `ES_REGION` to override the default AWS region of the ElasticSearch
+  instance. By default, this is `us-west-2`.
+* Set `ACCESS_KEY` to override the default access token used to authenticate to
+  dos-azul-lambda.
+
+
 ### Accessing data using DOS client
 
 A Python client for the Data Object Service is made available [here](https://github.com/ga4gh/data-object-service-schemas/blob/master/python/ga4gh/dos/client.py).
