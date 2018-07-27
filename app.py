@@ -52,6 +52,7 @@ def azul_to_bdl(result):
         'updated': azul['updated'] + 'Z',
         'created': azul['created'] + 'Z',
         'descrption': azul.get('description', ''),
+        'data_object_ids': azul['data_object_ids'],
     }
     # remove multiply valued items before we move into aliases
     del azul['checksums']
