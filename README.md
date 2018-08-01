@@ -41,6 +41,8 @@ For more information refer to the [Data Object Service](https://github.com/ga4gh
 
 ### Status
 
+dos-azul-lambda is tested against Python 2.7 and Python 3.6.
+
 This software is being actively developed to provide basic access to listing of
 Data Objects made available by the dss-azul-indexer.
 

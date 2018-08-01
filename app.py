@@ -242,15 +242,9 @@ def list_data_objects(**kwargs):
                                    from_=page_token if page_token != 0 else None)
     else:
         results = es_query(query={}, index=INDEXES['data_obj'], size=per_page + 1)
-
+    response = {'data_objects': [azul_to_obj(x) for x in results[:per_page]]}
     if len(results) > per_page:
-        next_page_token = str(int(page_token) + 1)
-    else:
-        next_page_token = None
-    data_objects = map(azul_to_obj, results)
-    response = {'data_objects': data_objects[0:per_page]}
-    if next_page_token:
-        response['next_page_token'] = next_page_token
+        response['next_page_token'] = str(int(page_token) + 1)
     return response
 
 
@@ -271,15 +265,9 @@ def list_data_bundles(**kwargs):
                                    from_=page_token if page_token != 0 else None)
     else:
         results = es_query(query={}, index=INDEXES['data_bdl'], size=per_page + 1)
-
+    response = {'data_bundles': [azul_to_bdl(x) for x in results[:per_page]]}
     if len(results) > per_page:
-        next_page_token = str(int(page_token) + 1)
-    else:
-        next_page_token = None
-    data_objects = map(azul_to_bdl, results)
-    response = {'data_bundles': data_objects[0:per_page]}
-    if next_page_token:
-        response['next_page_token'] = next_page_token
+        response['next_page_token'] = str(int(page_token) + 1)
     return response
 
 
@@ -322,14 +310,7 @@ def update_data_object(data_object_id):
         return Response({'msg': 'Please add a data_object to the body of your request'},
                         status_code=400)
 
-    new_aliases = filter(
-        lambda x: x not in data_object['aliases'],
-        update_data_object['aliases'])
-    # if len(new_aliases) == 0:
-    #     return Response(
-    #         {'msg': 'No new aliases, nothing was changed. '
-    #                 'Please check your request details.'}, status_code=400)
-
+    new_aliases = [x for x in update_data_object['aliases'] if x not in data_object['aliases']]
     data_object['aliases'] = data_object['aliases'] + new_aliases
 
     es_id = source['_id']
