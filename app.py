@@ -96,7 +96,7 @@ access_token = os.environ.get('ACCESS_KEY', DEFAULT_ACCESS_TOKEN)
 client = ESConnection(
     region=es_region, host=es_host, is_secure=False)
 app = Chalice(app_name='dos-azul-lambda')
-app.debug = True
+app.debug = os.environ.get('DEBUG', False) == 'True'
 
 base_path = '/ga4gh/dos/v1'
 

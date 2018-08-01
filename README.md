@@ -190,6 +190,7 @@ dos-azul-lambda can be configured by setting a number of environment variables:
   instance. By default, this is `us-west-2`.
 * Set `ACCESS_KEY` to override the default access token used to authenticate to
   dos-azul-lambda.
+* Set `DEBUG` to `True` or `False` to enable or disable debug mode.
 
 
 ### Accessing data using DOS client
