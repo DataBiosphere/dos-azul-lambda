@@ -1,8 +1,7 @@
 import json
 import logging
 import time
-from unittest import TestCase
-import urllib
+import unittest
 import uuid
 
 from chalice.config import Config
@@ -10,11 +9,16 @@ from chalice.local import LocalGateway
 
 from app import app, access_token
 
+try:
+    import urllib.parse as urllib  # For Python 3 compat
+except ImportError:
+    import urllib
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-class TestApp(TestCase):
+class TestApp(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.lg = LocalGateway(app, Config())
@@ -75,7 +79,7 @@ class TestApp(TestCase):
         Tests to see we can access the ES instance.
         """
         r = self.make_request('GET', '/')
-        self.assertIn('version', r.keys())
+        self.assertIn('version', list(r.keys()))
 
     def test_list_data_objects(self):
         """
