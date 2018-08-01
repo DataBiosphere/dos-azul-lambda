@@ -2,7 +2,7 @@ import json
 import logging
 import time
 from unittest import TestCase
-import urllib
+import urllib.parse
 import uuid
 
 from chalice.config import Config
@@ -55,7 +55,7 @@ class TestApp(TestCase):
 
     def get_query_url(self, path, body={}, **kwargs):
         body.update(kwargs)
-        return path + '?' + urllib.urlencode(body)
+        return path + '?' + urllib.parse.urlencode(body)
 
     def test_auth(self):
         """
@@ -75,7 +75,7 @@ class TestApp(TestCase):
         Tests to see we can access the ES instance.
         """
         r = self.make_request('GET', '/')
-        self.assertIn('version', r.keys())
+        self.assertIn('version', list(r.keys()))
 
     def test_list_data_objects(self):
         """
