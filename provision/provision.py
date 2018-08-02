@@ -133,7 +133,7 @@ if __name__ == '__main__':
     if command == 'teardown':
         teardown(sys.argv[2])
     elif command == 'setup':
-        if sys.argv < 3:
+        if len(sys.argv) > 3:
             domain = sys.argv[3]
         else:
             domain = None

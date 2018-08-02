@@ -1,8 +1,6 @@
 language: python
 python:
 - '2.7'
-env:
-- ES_HOST="search-dos-azul-test-a998691e-uuzze4esxbslgnc4i3pnbzjpq4.us-west-2.es.amazonaws.com" TEST_ES_DOMAIN="dos-azul-test-a998691e"
 branches:
   only:
   - master
@@ -10,11 +8,20 @@ before_install:
 - sudo apt-get update -qq
 - pip install -r dev-requirements.txt
 - pip install -r requirements.txt
+# We set these environment variables here instead of in `env` as
+# provision/provision.py requires boto3
+- export TEST_ES_DOMAIN=$(python provision/provision.py setup)
+- echo ${TEST_ES_DOMAIN}
+# Strip the leading `http://`
+- export ES_HOST=$(python provision/provision.py get-endpoint ${TEST_ES_DOMAIN})
+- export ES_HOST=$(echo ${ES_HOST} | sed 's~http[s]*://~~g')
+- echo ${ES_HOST}
 before_script:
-- python provision/provision.py raze ${TEST_ES_DOMAIN}
 - python provision/provision.py populate ${TEST_ES_DOMAIN}
+# Wait a few seconds to let ES catch up
+- sleep 3
 script:
 - flake8 --select=E121,E123,E126,E226,E24,E704,W503,W504 --ignore=E501 app.py tests
 - nosetests
 after_script:
-- python provision/provision.py raze ${TEST_ES_DOMAIN}
+- python provision/provision.py teardown ${TEST_ES_DOMAIN}
