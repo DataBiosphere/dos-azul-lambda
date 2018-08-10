@@ -113,6 +113,31 @@ class TestApp(unittest.TestCase):
         data_bundle_2 = r['data_bundle']
         self.assertEqual(data_bundle_1, data_bundle_2)
 
+    def test_get_nonexistent_data_bundle(self):
+        """
+        Verifies that requesting a data bundle that doesn't exist results in HTTP 404
+        """
+        self.make_request('GET', '/ga4gh/dos/v1/databundles/NonexistentDataBundle',
+                          expected_status=404)
+
+    def test_update_nonexistent_data_object(self):
+        """
+        Verifies that trying to update a data object that doesn't exist returns HTTP 404
+        """
+        self.make_request(headers={'access_token': self.access_token},
+                          meth='PUT', expected_status=404,
+                          path='/ga4gh/dos/v1/dataobjects/NonexistentObjID')
+
+    def test_update_data_object_with_bad_request(self):
+        """
+        Verifies that attempting to update a data object with a malformed
+        request returns HTTP 400
+        """
+        data_obj = self.make_request('GET', '/ga4gh/dos/v1/dataobjects')['data_objects'][1]
+        self.make_request(headers={'access_token': self.access_token},
+                          meth='PUT', expected_status=400,
+                          path='/ga4gh/dos/v1/dataobjects/' + data_obj['id'])
+
     def test_paging(self):
         """
         Demonstrates basic paging features.
@@ -146,7 +171,7 @@ class TestApp(unittest.TestCase):
                               '/ga4gh/dos/v1/dataobjects/' + data_obj['id'],
                               headers={'content-type': 'application/json'},
                               body={'data_object': data_obj},
-                              expected_status=403)
+                              expected_status=401)
 
     def test_nonexist_alias(self):
         """
