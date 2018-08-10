@@ -178,10 +178,10 @@ dos-azul-lambda can be configured by setting a number of environment variables:
   for data objects. By default, this is `fb_index`.
 * Set `DATA_BDL_INDEX` to override the name of the ElasticSearch index to query
   for data bundles. By default, this is `db_index`.
-* Set `DATA_OBJ_INDEX` to override the name of the ElasticSearch document type
+* Set `DATA_OBJ_DOCTYPE` to override the name of the ElasticSearch document type
   that dos-azul-lambda should expect to correspond with `DATA_OBJ_INDEX`. By
   default, this is `meta`.
-* Set `DATA_BDL_INDEX` to override the name of the ElasticSearch document type
+* Set `DATA_BDL_DOCTYPE` to override the name of the ElasticSearch document type
   that dos-azul-lambda should expect to correspond with `DATA_BDL_INDEX`. By
   default, this is `databundle`.
 * Set `ES_HOST` to override the hostname of the ElasticSearch instance. By
