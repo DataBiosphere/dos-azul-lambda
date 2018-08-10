@@ -1,10 +1,38 @@
-import os
+# -*- coding: utf-8 -*-
+# The dos-azul-lambda request handling stack is generally structured like so:
+#
+#      /\  * Endpoint handlers, named for the DOS operation converted to
+#     /__\   snake case (e.g. list_data_bundles).
+#    /    \  * ElasticSearch helper functions that implement common query types
+#   /______\   such as matching on a certain field, with names matching `azul_*`
+#  /        \  * :func:`make_es_request`, and :func:`es_query`, which make the
+# /__________\    actual ElasticSearch requests using :mod:`requests`
+#
+# Error catching should be handled as follows:
+# * Functions that return :class:`~chalice.Response` objects should raise
+#   Chalice exceptions where appropriate. Chalice exceptions will halt
+#   control flow and return a response with an appropriate error code and
+#   a nice message.
+# * Functions that don't return :class:`~chalice.Response` objects should
+#   raise builtin exceptions where appropriate. Those exceptions should be
+#   caught by the aforementioned and either ignored or replaced with Chalice
+#   exceptions.
+# * Endpoint handlers should raise exceptions consistent with the DOS schema.
+# * Between all of this, exception logging should occur at the lowest level,
+#   next to where an exception is raised. This generally means
+#   :func:`make_es_request` and :func:`es_query`.
 import json
+import logging
+import os
 
-from chalice import Chalice, Response
+from chalice import Chalice, Response, BadRequestError, UnauthorizedError, \
+    NotFoundError, ChaliceViewError
 from boto.connection import AWSAuthConnection
 import requests
 import yaml
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('dos-azul-lambda')
 
 
 def azul_to_obj(result):
@@ -93,8 +121,7 @@ DOCTYPES = {
 es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
 es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
 access_token = os.environ.get('ACCESS_KEY', DEFAULT_ACCESS_TOKEN)
-client = ESConnection(
-    region=es_region, host=es_host, is_secure=False)
+client = ESConnection(region=es_region, host=es_host, is_secure=False)
 app = Chalice(app_name='dos-azul-lambda')
 app.debug = os.environ.get('DEBUG', False) == 'True'
 
@@ -103,7 +130,7 @@ base_path = '/ga4gh/dos/v1'
 
 @app.route('/', cors=True)
 def index():
-    resp = client.make_request(method='GET', path='/')
+    resp = make_es_request(method='GET', path='/')
     return resp.read()
 
 
@@ -116,6 +143,28 @@ def test_token():
     """
     body = {'authorized': check_auth()}
     return Response(body, status_code=200 if body['authorized'] else 401)
+
+
+def make_es_request(**kwargs):
+    """
+    Wrapper around :meth:`ESConnection.make_request` that checks if the
+    request was completed successfully.
+    :param kwargs: same as arguments to :meth:`ESConnection.make_request`
+    :raises RuntimeError: if the request does not return HTTP 200
+    """
+    request = "%s %s" % (kwargs['method'], kwargs['path'])
+    logger.debug(request + " " + kwargs.get('data', ""))
+    r = client.make_request(**kwargs)
+    if r.status != 200:
+        data = json.loads(r.read())
+        data = data.get('Message', '') or data.get('reason', '') or repr(data)
+        msg = "%s returned code %d, expcted 200: %s" % (request, r.status, data)
+        logger.exception(msg)
+        raise RuntimeError(msg)
+    # If `app.debug=False` (which it is for deployments), an uncaught
+    # exception will cause the server to automatically return a 500 response
+    # with a nice error message and interally log a traceback.
+    return r
 
 
 def es_query(query, index, size):
@@ -133,14 +182,16 @@ def es_query(query, index, size):
     :rtype: list
     """
     dsl = {'size': size, 'query': query}
-    query = client.make_request(method='GET', data=json.dumps(dsl),
-                                path='/{index}/_search'.format(index=index))
+    logger.debug("Querying index %s with query %r" % (index, dsl))
+    query = make_es_request(method='GET', data=json.dumps(dsl),
+                            path='/{index}/_search'.format(index=index))
     response = json.loads(query.read())
     try:
         hits = response['hits']['hits']
     except KeyError:
-        raise RuntimeError("ElasticSearch returned an unexpected response")
-
+        msg = "ElasticSearch returned an unexpected response: %s", query.read()
+        logger.exception(msg)
+        raise RuntimeError(msg)
     return hits
 
 
@@ -158,6 +209,8 @@ def azul_match_field(index, key, val, size=1):
     results = es_query(index=index, size=size,
                        query={'bool': {'must': {'term': {key: val}}}})
     if len(results) < 1:
+        # We don't need to log an exception here since this kind of error could
+        # occur if a user requests a file that does not exist.
         raise LookupError("Query returned no results")
     return results[0]
 
@@ -178,7 +231,51 @@ def azul_match_alias(index, alias, from_=None, size=10):
     dsl = {'term': {'aliases.keyword': alias}}
     if from_:
         dsl['from'] = from_
-    return es_query(index=index, query=dsl, size=size)
+    # es_query will raise a RuntimeError if it doesn't understand the ES response
+    # There isn't really any other exception we can check for here.
+    query = es_query(index=index, query=dsl, size=size)
+    return query
+
+
+def azul_get_document(key, val, name, es_index, map_fn):
+    """
+    Queries ElasticSearch for a single document and returns a
+    :class:`~chalice.Response` object with the retrieved data. Wrapper
+    around :func:`azul_match_field`. Implements lookup functionality used
+    in :func:`get_data_object` and :func:`get_data_bundle`.
+    :param str key: the key to search for in the given ElasticSearch index
+    :param str val: the value to search for in the given ElasticSearch index
+    :param str name: the key the document should be returned under
+    :param str es_index: the name of the index to query in ElasticSearch
+    :param callable map_fn: function mapping the returned Azul document to a
+                            DOS format
+    :raises RuntimeError: if the ElasticSearch response is not understood
+    :rvtype: :class:`chalice.Response`
+    :returns: the retrieved data or the error state
+    """
+    try:
+        data = azul_match_field(index=es_index, key=key, val=val)
+        data = map_fn(data)
+        # Double check to verify identity
+        if data['id'] != val:
+            raise LookupError("ID mismatch in results")
+    except LookupError:
+        # azul_match_field will also raise a LookupError if no results are returned.
+        # This isn't really an error, as a user requesting an object that could
+        # not be found is generally not unexpected.
+        raise NotFoundError("No results found for type %s and ID %s." % (name, val))
+    except RuntimeError:
+        # es_query will raise a RuntimeError if it doesn't understand the ES
+        # response. It is logged in :func:`es_query`
+        raise ChaliceViewError("Received an unexpected response from Azul.")
+    except Exception:
+        # If anything else happens...
+        logger.exception("Unexpected error attempting to retrieve {name} "
+                         "{key}={val} from index {es_index} using transformer"
+                         " {fn}".format(name=name, key=key, val=val,
+                                        es_index=es_index, fn=map_fn.func_name))
+        raise ChaliceViewError("There was a problem communicating with Azul.")
+    return Response({name: data}, status_code=200)
 
 
 @app.route(base_path + '/dataobjects/{data_object_id}', methods=['GET'], cors=True)
@@ -188,19 +285,10 @@ def get_data_object(data_object_id):
     configured data object index and returns the first matching file.
 
     :param data_object_id: the id of the data object
-    :raises LookupError: if no data object is found for the given query
     :rtype: DataObject
     """
-    try:
-        data_obj = azul_to_obj(azul_match_field(index=INDEXES['data_obj'],
-                                                key='file_id', val=data_object_id))
-        # Double check to verify identity (since `file_id` is an analyzed field)
-        if data_obj['id'] != data_object_id:
-            raise LookupError
-    # azul_match_field will also raise a LookupError if no results are returned
-    except LookupError:
-        return Response({'msg': "Data object not found."}, status_code=404)
-    return Response({'data_object': data_obj}, status_code=200)
+    return azul_get_document(key='file_id', val=data_object_id, name='data_object',
+                             map_fn=azul_to_obj, es_index=INDEXES['data_obj'])
 
 
 @app.route(base_path + '/databundles/{data_bundle_id}', methods=['GET'], cors=True)
@@ -210,19 +298,10 @@ def get_data_bundle(data_bundle_id):
     configured data bundle index. Returns the first matching file.
 
     :param data_bundle_id: the id of the data bundle
-    :raises LookupError: if no data bundle is found for the given query
     :rtype: DataBundle
     """
-    try:
-        data_bdl = azul_to_bdl(azul_match_field(index=INDEXES['data_bdl'],
-                                                key='id', val=data_bundle_id))
-        # Double check to verify identity (since `file_id` is an analyzed field)
-        if data_bdl['id'] != data_bundle_id:
-            raise LookupError
-    # azul_match_field will also raise a LookupError if no results are returned
-    except LookupError:
-        return Response({'msg': "Data bundle not found."}, status_code=404)
-    return Response({'data_bundle': data_bdl}, status_code=200)
+    return azul_get_document(key='id', val=data_bundle_id, name='data_bundle',
+                             map_fn=azul_to_bdl, es_index=INDEXES['data_bdl'])
 
 
 @app.route(base_path + '/dataobjects', methods=['GET'], cors=True)
@@ -271,64 +350,33 @@ def list_data_bundles(**kwargs):
     return response
 
 
-@app.route("{}/dataobjects/{}".format(base_path, "{data_object_id}"),
-           methods=['PUT'], cors=True)
+@app.route(base_path + '/dataobjects/{data_object_id}', methods=['PUT'], cors=True)
 def update_data_object(data_object_id):
     """
-    Updates a Data Object's alias field only, while not modifying
-    version information.
-
-    :param kwargs:
-    :return:
+    Updates a data object. The data object must exist.
+    :param data_object_id: the id of the data object to update
     """
-    # Before anything, make sure they are allowed to make the
-    # modification.
+    # Ensure that the user is authenticated first
     if not check_auth():
-        return Response({'msg': 'Not authorized to access this service. '
-                                'Did you set access_token in the request'
-                                ' headers?'}, status_code=403)
+        raise UnauthorizedError("You're not authorized to use this service. "
+                                "Did you set access_token in the request headers?")
 
-    # First try to get the Object specified
+    # Make sure that the data object to update exists
     try:
         source = azul_match_field(index=INDEXES['data_obj'], key='file_id', val=data_object_id)
     except LookupError:
-        return Response({'msg': "Data object not found."}, status_code=404)
-    data_object = azul_to_obj(source)
+        raise NotFoundError("Data object not found.")
 
-    # Now check to see the contents don't already contain
-    # any aliases we want to add.
+    # Check that a data object was provided in the request
+    body = app.current_request.json_body
+    if not body or not body.get('data_object', None):
+        raise BadRequestError("Please add a data_object to the body of your request.")
 
-    if app.current_request.json_body:
-        update_body = app.current_request.json_body
-    else:
-        return Response({'msg': 'Please add a data_object to the body of your request'},
-                        status_code=400)
-
-    if update_body.get('data_object', None):
-        update_data_object = update_body['data_object']
-    else:
-        return Response({'msg': 'Please add a data_object to the body of your request'},
-                        status_code=400)
-
-    new_aliases = [x for x in update_data_object['aliases'] if x not in data_object['aliases']]
-    data_object['aliases'] = data_object['aliases'] + new_aliases
-
-    es_id = source['_id']
-    updated_fields = {'aliases': update_data_object['aliases']}
-
-    path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], es_id)
-    es_update_response = client.make_request(method='POST', path=path,
-                                             data=json.dumps({'doc': updated_fields}))
-
-    es_update_response_body = json.loads(es_update_response.read())
-
-    return {
-        'data_object_id': data_object_id,
-        'aliases': update_data_object['aliases'],
-        'data_object': data_object,
-        'new_aliases': new_aliases,
-        'source': source,
-        'es_response': es_update_response_body}
+    # Now that we know everything is okay, do the actual update
+    path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
+    data = json.dumps({'doc': {'aliases': body['data_object']['aliases']}})
+    make_es_request(method='POST', path=path, data=data)
+    return {'data_object_id': data_object_id}
 
 
 @app.route('/swagger.json', cors=True)

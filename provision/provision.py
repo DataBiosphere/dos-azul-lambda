@@ -25,11 +25,11 @@ def getpath(filename):
     return os.path.abspath(os.path.join(os.path.dirname(__file__), filename))
 
 
-def get_legacy_client(endpoint):
+def get_request_handler(endpoint):
     sys.path.insert(0, getpath('..'))
     os.environ['ES_HOST'] = endpoint[7:]  # remove http://
-    from app import client
-    return client
+    from app import make_es_request
+    return make_es_request
 
 
 def get_endpoint(es_domain):
@@ -64,23 +64,23 @@ def populate_domain(endpoint):
     Given an ElasticSearch endpoint, populates the domain with a
     'faithful' replica of dss-azul-commons for testing purposes.
     """
-    # boto3 can't sign requests by default, so we fall back to boto2
-    client = get_legacy_client(endpoint)
-
+    # boto3 can't sign requests by default, so we pull the boto2 request
+    # handler from app.py (which is already nicely configured)
+    make_es_request = get_request_handler(endpoint)
 
     # Set up fb_index (data_objects)
     with open(getpath('index-mapping.json'), 'r') as data:
         payload = json.load(data)[obj_index]
-    client.make_request(method='PUT', path='/' + obj_index, data=json.dumps(payload))
+    make_es_request(method='PUT', path='/' + obj_index, data=json.dumps(payload))
 
     # Set up db_index (data bundles)
     with open(getpath('index-mapping.json'), 'r') as data:
         payload = json.load(data)[bdl_index]
-    client.make_request(method='PUT', path='/' + bdl_index, data=json.dumps(payload))
+    make_es_request(method='PUT', path='/' + bdl_index, data=json.dumps(payload))
 
     # Populate both indexes
     with open(getpath('test-data.json'), 'r') as data:
-        client.make_request(method='POST', path='/_bulk', data=data.read())
+        make_es_request(method='POST', path='/_bulk', data=data.read())
 
 
 def raze_domain(endpoint):
@@ -88,14 +88,15 @@ def raze_domain(endpoint):
     Given an ElasticSearch endpoint, drops fb_index and db_index so that
     it can be populated anew.
     """
-    # boto3 can't sign requests by default, so we fall back to boto2
-    client = get_legacy_client(endpoint)
+    # boto3 can't sign requests by default, so we pull the boto2 request
+    # handler from app.py (which is already nicely configured)
+    make_es_request = get_request_handler(endpoint)
 
     # Drop fb_index
-    client.make_request(method='DELETE', path='/' + obj_index)
+    make_es_request(method='DELETE', path='/' + obj_index)
 
     # Drop db_index
-    client.make_request(method='DELETE', path='/' + bdl_index)
+    make_es_request(method='DELETE', path='/' + bdl_index)
 
 
 def setup(es_domain=None):
