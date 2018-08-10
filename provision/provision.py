@@ -4,7 +4,7 @@ $ provision/provision.py {setup,teardown,populate,raze} <domain>
 """
 import json
 import logging
-import os.path
+import os
 import string
 import sys
 import time
@@ -15,6 +15,10 @@ import boto3
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 es = boto3.client('es')
+
+# Get index names
+obj_index = os.environ.get('DATA_OBJ_INDEX', 'fb_index')
+bdl_index = os.environ.get('DATA_BDL_INDEX', 'db_index')
 
 
 def getpath(filename):
@@ -63,15 +67,16 @@ def populate_domain(endpoint):
     # boto3 can't sign requests by default, so we fall back to boto2
     client = get_legacy_client(endpoint)
 
+
     # Set up fb_index (data_objects)
     with open(getpath('index-mapping.json'), 'r') as data:
-        payload = json.load(data)['fb_index']
-    client.make_request(method='PUT', path='/fb_index', data=json.dumps(payload))
+        payload = json.load(data)[obj_index]
+    client.make_request(method='PUT', path='/' + obj_index, data=json.dumps(payload))
 
     # Set up db_index (data bundles)
     with open(getpath('index-mapping.json'), 'r') as data:
-        payload = json.load(data)['db_index']
-    client.make_request(method='PUT', path='/db_index', data=json.dumps(payload))
+        payload = json.load(data)[bdl_index]
+    client.make_request(method='PUT', path='/' + bdl_index, data=json.dumps(payload))
 
     # Populate both indexes
     with open(getpath('test-data.json'), 'r') as data:
@@ -87,10 +92,10 @@ def raze_domain(endpoint):
     client = get_legacy_client(endpoint)
 
     # Drop fb_index
-    client.make_request(method='DELETE', path='/fb_index')
+    client.make_request(method='DELETE', path='/' + obj_index)
 
     # Drop db_index
-    client.make_request(method='DELETE', path='/db_index')
+    client.make_request(method='DELETE', path='/' + bdl_index)
 
 
 def setup(es_domain=None):
