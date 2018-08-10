@@ -26,7 +26,6 @@
   "app_name": "dos-azul-lambda",
   "environment_variables": {
     "DATA_OBJ_INDEX": "fb_index",
-    "HOME": "/tmp",
     "DEBUG": "False"
   }
 }
