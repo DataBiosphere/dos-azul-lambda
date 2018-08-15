@@ -20,11 +20,3 @@ To destroy the domain:
 
     python provision.py teardown <es_domain>
 
-In `travis.yml`, `ES_HOST` should be the domain name of the ElasticSearch
-instance without the leading `http://`, e.g.
-
-    search-dos-azul-test-abcdefg-123456.us-west-2.es.amazonaws.com
-
-`TEST_ES_DOMAIN` should be just the domain name:
-
-    dos-azul-test-abcdefg
