@@ -158,16 +158,55 @@ You can also run the application locally with `chalice local` and run tests with
 
 #### Running Tests
 
-Some integration tests are available in the tests directory.
+Some integration tests are available in the `tests/` directory. To run them, you need to
+spin up a new ElasticSearch domain on AWS. This is because data bundles are not currently
+included in the default ElasticSearch index, and to ensure that tests can run in a clean,
+isolated, and controlled environment. (See [`provision/README`](provision/README) for more details.)
 
-```
-pip install -r dev-requirements.txt
-nosetests
-```
+First, install the development requirements:
 
-Assuming your AWS credentials are set up properly to access the Elastic Search
-domain, you will see a few tests pass that demonstrate the List and Get
-features of the DOS endpoint.
+    $ pip install -r dev-requirements.txt
+
+Next, use `provision/provision.py` to start a new ElasticSearch instance. (You must
+have AWS credentials configured, i.e. `aws configure`.)
+
+    $ python provision/provision.py setup
+
+The above command will take about ten minutes to complete. Once it's done, you'll
+see an ElasticSearch domain name - something like `dos-azul-test-a1b2c3d4`. Copy
+the domain name and use it to retrieve the ElasticSearch endpoint:
+
+    $ # Substitute your domain below
+    $ python provision/provision.py get-endpoint dos-azul-test-a1b2c3d4
+    http://search-dos-azul-test-a1b2c3d4-hiybbprqag.us-west-2.es.amazonaws.com
+
+Take the endpoint URL, strip the leading `http://` or `https://`, and set that as
+the `ES_HOST` environment variable:
+
+    $ export ES_HOST=search-dos-azul-test-a1b2c3d4-hiybbprqag.us-west-2.es.amazonaws.com
+
+Finally, populate your new ES domain with data:
+
+    $ python provision/provision.py populate dos-azul-test-a1b2c3d4
+
+You can now run the unit tests:
+
+    $ nosetests
+
+If you want to run tests on a clean set of data, wipe the data then add the data again:
+
+    $ python provision/provision.py raze dos-azul-test-a1b2c3d4
+    $ python provision/provision.py populate dos-azul-test-a1b2c3d4
+
+Tests should always pass on master. If they don't seem to be passing, make sure that
+* your AWS credentials are set up properly
+* you followed the instructions in [`provision/README`](provision/README)
+* you set the `ES_HOST` environment variable properly
+
+When you're done, use your ElasticSearch domain name (the short one) to tear down the
+domain you created:
+
+    $ python provision/provision.py teardown dos-azul-test-a1b2c3d4
 
 
 #### Configuration
