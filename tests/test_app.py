@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 import unittest
 import uuid
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 class TestApp(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        os.environ['DEBUG'] = 'True'
         cls.lg = LocalGateway(app, Config())
         cls.access_token = access_token
 
