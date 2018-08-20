@@ -10,7 +10,7 @@
         ]
       },
       "Action": "es:*",
-      "Resource": "arn:aws:es:us-west-2:${aws_id}:domain/${es_domain}/*"
+      "Resource": "arn:aws:es:${region}:${aws_id}:domain/${es_domain}/*"
     }
   ]
 }
