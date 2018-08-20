@@ -30,3 +30,20 @@ script:
 - nosetests
 after_script:
 - python provision/provision.py teardown ${TEST_ES_DOMAIN}
+# We want to deploy dos-azul-lambda to `dev` on every commit to master
+# that builds successfully and to `staging` on every tagged commit to
+# master that builds successfully.
+deploy:
+- provider: script
+  script: chalice deploy --stage dev --no-autogen-policy
+  on:
+    repo: DataBiosphere/dos-azul-lambda
+    branch: master
+    python: '3.6'
+- provider: script
+  script: chalice deploy --stage staging --no-autogen-policy
+  on:
+    repo: DataBiosphere/dos-azul-lambda
+    branch: master
+    python: '3.6'
+    tags: true
