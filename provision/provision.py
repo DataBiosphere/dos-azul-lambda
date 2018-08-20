@@ -106,8 +106,8 @@ def setup(es_domain=None):
     if not es_domain:
         es_domain = 'dos-azul-test-' + str(uuid.uuid1()).split('-')[0]
     aws_info = boto3.client('sts').get_caller_identity()
-    # The access policy has curly braces so we can't use str.format()
-    # https://github.com/DataBiosphere/azul/blob/feature/commons/indexer/policies/elasticsearch-policy.json
+
+    # Generate the polic from policy.json, filling in the blanks.
     with open(getpath('policy.json'), 'r') as ES_ACCESS_POLICY:
         policy = string.Template(ES_ACCESS_POLICY.read()).substitute({
             'aws_id': aws_info['Account'],
