@@ -184,6 +184,44 @@ class TestApp(unittest.TestCase):
         body = self.make_request('GET', '/ga4gh/dos/v1/databundles?alias=' + alias)
         self.assertEqual(len(body['data_bundles']), 0)
 
+    def test_full_data_object_update(self):
+        """
+        Demonstrates updating multiple fields of a data object at once.
+        This incidentally also tests object conversion.
+        """
+        # First, select a "random" object that we can test
+        body = self.make_request('GET', '/ga4gh/dos/v1/dataobjects')
+        data_object = body['data_objects'][6]
+        url = '/ga4gh/dos/v1/dataobjects/' + data_object['id']
+
+        # Make a new data object that is different from the data object we retrieved
+        attributes = {
+            # 'name' and 'description' are optional fields and might not be present
+            'name': data_object.get('name', '') + 'test-suffix',
+            # See DataBiosphere/dos-azul-lambda#87
+            # 'description': data_object.get('description', '') + 'Change This',
+            'urls': [
+                {'url': 'https://cgl.genomics.ucsc.edu/'},
+                {'url': 'https://github.com/DataBiosphere'}
+            ]
+        }
+        data_object.update(attributes)
+
+        # Now update the old data object with the new attributes we added
+        params = {
+            'headers': {
+                'content-type': 'application/json',
+                'access_token': self.access_token
+            },
+            'body': {'data_object': data_object}
+        }
+        self.make_request('PUT', url, **params)
+        time.sleep(2)  # Give the server some time to catch up
+
+        # Test and see if the update took place
+        get_response = self.make_request('GET', url)
+        self.assertEqual(get_response['data_object'], data_object)
+
     def test_alias_update(self):
         """
         Demonstrates updating a data object with a given alias.
