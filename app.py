@@ -52,7 +52,7 @@ def azul_to_obj(result):
     data_object['checksums'] = [
         {'checksum': azul['fileMd5sum'], 'type': 'md5'}]
     data_object['aliases'] = azul['aliases']
-    data_object['updated'] = azul['lastModified'] + 'Z'
+    data_object['updated'] = azul['lastModified'].rstrip('Z') + 'Z'
     data_object['name'] = azul['title']
     return data_object
 
