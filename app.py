@@ -28,8 +28,7 @@ import os
 from chalice import Chalice, Response, BadRequestError, UnauthorizedError, \
     NotFoundError, ChaliceViewError
 from boto.connection import AWSAuthConnection
-import requests
-import yaml
+import ga4gh.dos.schema
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('dos-azul-lambda')
@@ -382,13 +381,8 @@ def update_data_object(data_object_id):
 @app.route('/swagger.json', cors=True)
 def swagger():
     """
-    An endpoint for returning the swagger api description.
-
-    :return:
+    An endpoint for returning the Swagger API description.
     """
-    # FIXME replace with one hosted here
-    req = requests.get("https://raw.githubusercontent.com/ga4gh/data-object-service-schemas/master/openapi/data_object_service.swagger.yaml")  # NOQA
-    swagger_dict = yaml.load(req.content)
-
-    swagger_dict['basePath'] = '/api/ga4gh/dos/v1'
-    return swagger_dict
+    swagger = ga4gh.dos.schema.from_chalice_routes(app.routes)
+    swagger['basePath'] = '/api/ga4gh/dos/v1'
+    return swagger
