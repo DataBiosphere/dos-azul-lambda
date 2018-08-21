@@ -4,26 +4,13 @@
     {
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::${aws_id}:root"
+        "AWS": [
+            "arn:aws:iam::${aws_id}:root",
+            "${user_arn}"
+        ]
       },
       "Action": "es:*",
-      "Resource": "arn:aws:es:us-west-2:${aws_id}:domain/${es_domain}/*"
-    },
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "${user_arn}"
-      },
-      "Action": "es:*",
-      "Resource": "arn:aws:es:us-west-2:${aws_id}:domain/${es_domain}/*"
-    },
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "arn:aws:iam::${aws_id}:user/travis_integration_test_CGP"
-      },
-      "Action": "es:ESHttp*",
-      "Resource": "arn:aws:es:us-west-2:${aws_id}:domain/${es_domain}/*"
+      "Resource": "arn:aws:es:${region}:${aws_id}:domain/${es_domain}/*"
     }
   ]
 }
