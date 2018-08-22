@@ -52,9 +52,26 @@ def azul_to_obj(result):
     data_object['checksums'] = [
         {'checksum': azul['fileMd5sum'], 'type': 'md5'}]
     data_object['aliases'] = azul['aliases']
-    data_object['updated'] = azul['lastModified'] + 'Z'
+    data_object['updated'] = azul['lastModified'].rstrip('Z') + 'Z'
     data_object['name'] = azul['title']
     return data_object
+
+
+def obj_to_azul(data_object):
+    """
+    Takes a Data Object and converts it to an Azul object.
+    :rtype: dict
+    """
+    obj = data_object
+    checksum = obj['checksums'][0]
+    obj['file_id'] = obj.pop('id')
+    obj['urls'] = [url['url'] for url in obj['urls']]
+    obj['file_version'] = obj.pop('version')
+    obj['fileSize'] = obj.pop('size', '')
+    obj['fileMd5sum'] = checksum['checksum'] if checksum['type'] == 'md5' else ''
+    obj['lastModified'] = obj.pop('updated').rstrip('Z')
+    obj['title'] = obj.pop('name')
+    return obj
 
 
 def azul_to_bdl(result):
@@ -373,9 +390,9 @@ def update_data_object(data_object_id):
         raise BadRequestError("Please add a data_object to the body of your request.")
 
     # Now that we know everything is okay, do the actual update
-    path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
-    data = json.dumps({'doc': {'aliases': body['data_object']['aliases']}})
-    make_es_request(method='POST', path=path, data=data)
+    path = '/{}/{}/{}'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
+    data = json.dumps(obj_to_azul(body['data_object']))
+    make_es_request(method='PUT', path=path, data=data)
     return {'data_object_id': data_object_id}
 
 
