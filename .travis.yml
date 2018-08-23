@@ -2,9 +2,14 @@ language: python
 python:
 - '2.7'
 - '3.6'
+# Specifying `branches.only = ['master']` can cause tagged builds to
+# not deploy. See travis-ci/travis-ci#2498 and travis-ci/travis-ci#1675.
+# We can fix this by only build master and branches/tags that follow the
+# format x.y.z.
 branches:
   only:
   - master
+  - /^\d+\.\d+(\.\d+)?(-\S*)?$/
 before_install:
 - sudo apt-get update -qq
 - pip install -r dev-requirements.txt
@@ -43,9 +48,7 @@ deploy:
 - provider: script
   script: chalice deploy --stage staging --no-autogen-policy
   on:
-    # Specifying `branch: master` can cause tagged builds to not deploy.
-    # See travis-ci/travis-ci#2498. (So just don't tag commits tha aren't
-    # on master!)
+    branch: master
     repo: DataBiosphere/dos-azul-lambda
     python: '3.6'
     tags: true
