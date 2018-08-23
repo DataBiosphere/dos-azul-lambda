@@ -43,7 +43,9 @@ deploy:
 - provider: script
   script: chalice deploy --stage staging --no-autogen-policy
   on:
+    # Specifying `branch: master` can cause tagged builds to not deploy.
+    # See travis-ci/travis-ci#2498. (So just don't tag commits tha aren't
+    # on master!)
     repo: DataBiosphere/dos-azul-lambda
-    branch: master
     python: '3.6'
     tags: true
