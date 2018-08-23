@@ -70,17 +70,23 @@ def populate_domain(endpoint):
 
     # Set up fb_index (data_objects)
     with open(getpath('index-mapping.json'), 'r') as data:
-        payload = json.load(data)[obj_index]
+        payload = json.load(data)['fb_index']
     make_es_request(method='PUT', path='/' + obj_index, data=json.dumps(payload))
 
     # Set up db_index (data bundles)
     with open(getpath('index-mapping.json'), 'r') as data:
-        payload = json.load(data)[bdl_index]
+        payload = json.load(data)['db_index']
     make_es_request(method='PUT', path='/' + bdl_index, data=json.dumps(payload))
 
     # Populate both indexes
     with open(getpath('test-data.json'), 'r') as data:
-        make_es_request(method='POST', path='/_bulk', data=data.read())
+        # Make sure that documents are uploaded to correct index if index
+        # name has been changed
+        payload = string.Template(data.read()).substitute({
+            'data_obj': obj_index,
+            'data_bdl': bdl_index
+        })
+        make_es_request(method='POST', path='/_bulk', data=payload)
 
 
 def raze_domain(endpoint):
