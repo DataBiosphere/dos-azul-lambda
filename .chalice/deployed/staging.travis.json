@@ -1,0 +1,23 @@
+{
+  "resources": [
+    {
+      "name": "api_handler_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::719818754276:role/dos-azul-lambda-staging-api_handler",
+      "role_name": "dos-azul-lambda-staging-api_handler"
+    },
+    {
+      "name": "api_handler",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-west-2:719818754276:function:dos-azul-lambda-staging"
+    },
+    {
+      "name": "rest_api",
+      "resource_type": "rest_api",
+      "rest_api_id": "bdu2r6i2d2",
+      "rest_api_url": "https://bdu2r6i2d2.execute-api.us-west-2.amazonaws.com/staging/"
+    }
+  ],
+  "schema_version": "2.0",
+  "backend": "api"
+}

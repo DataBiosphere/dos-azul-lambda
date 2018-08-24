@@ -49,11 +49,12 @@ jobs:
     # master that builds successfully.
     - stage: deploy
       python: '3.6'
-      install:
-        - pip install chalice>=1.6.0\,\<2
       before_script: ignore
       script: ignore
       after_script: ignore
+      before_deploy:
+        - cp .chalice/deployed/dev.travis.json .chalice/deployed/dev.json
+        - cp .chalice/deployed/staging.travis.json .chalice/deployed/staging.json
       deploy:
       - provider: script
         script: chalice deploy --stage dev --no-autogen-policy
