@@ -1,54 +1,84 @@
 language: python
+
 python:
-- '2.7'
-- '3.6'
+  - 2.7
+  - 3.6
+
+# One ElasticSearch domain is kept alive for dos-azul-lambda testing. Before
+# testing, Travis will configure the ElasticSearch domain with two new, unique
+# indexes, populated with data. This is so we can take advantage of an
+# isolated-enough environment while avoiding the long start times required
+# to start a new ElasticSearch instance.
+env:
+  global:
+    - ES_HOST="search-dos-azul-test-7f6ecc04-xfo4lbmxzvafkrw5pbslkggpye.us-west-2.es.amazonaws.com"
+    - DATA_OBJ_INDEX="dataobj_${RANDOM}"
+    - DATA_BDL_INDEX="databdl_${RANDOM}"
+    - TEST_ES_DOMAIN="dos-azul-test-7f6ecc04"
+
 # Specifying `branches.only = ['master']` can cause tagged builds to
 # not deploy. See travis-ci/travis-ci#2498 and travis-ci/travis-ci#1675.
 # We can fix this by only build master and branches/tags that follow the
 # format x.y.z.
 branches:
   only:
-  - master
-  - /^\d+\.\d+(\.\d+)?(-\S*)?$/
-before_install:
-- sudo apt-get update -qq
-- pip install -r dev-requirements.txt
-- pip install -r requirements.txt
-# We set these environment variables here instead of in `env` as
-# provision/provision.py requires boto3, which isn't installed until
-# the `before_install` step.
-# $TEST_ES_DOMAIN should be set to the 'short' domain name of the new
-# ElasticSearch domain (e.g. dos-azul-test-abc123)
-- export TEST_ES_DOMAIN=$(python provision/provision.py setup)
-- echo ${TEST_ES_DOMAIN}
-# $ES_HOST should be set to the domain of the ElasticSearch endpoint
-# without the leading `http://` or `https://`
-- export ES_HOST=$(python provision/provision.py get-endpoint ${TEST_ES_DOMAIN})
-- export ES_HOST=$(echo ${ES_HOST} | sed 's~http[s]*://~~g')
-- echo ${ES_HOST}
+    - master
+    - /^\d+\.\d+(\.\d+)?(-\S*)?$/
+
+stages:
+  - linting
+  - test
+  - name: deploy
+    if: type != pull_request
+
+jobs:
+  include:
+    # If the linting stage fails, then none of the other stages will run.
+    - stage: linting
+      python: '3.6'
+      install:
+        - pip install -r dev-requirements.txt
+      before_script: ignore
+      script: ignore
+      after_script: ignore
+      script:
+        - flake8 --select=E121,E123,E126,E226,E24,E704,W503,W504 --ignore=E501 app.py tests
+
+    # We want to deploy dos-azul-lambda to `dev` on every commit to master
+    # that builds successfully and to `staging` on every tagged commit to
+    # master that builds successfully.
+    - stage: deploy
+      python: '3.6'
+      install:
+        - pip install chalice>=1.6.0\,\<2
+      before_script: ignore
+      script: ignore
+      after_script: ignore
+      deploy:
+      - provider: script
+        script: chalice deploy --stage dev --no-autogen-policy
+        on:
+          repo: DataBiosphere/dos-azul-lambda
+          branch: master
+          python: '3.6'
+      - provider: script
+        script: chalice deploy --stage staging --no-autogen-policy
+        on:
+          branch: master
+          repo: DataBiosphere/dos-azul-lambda
+          python: '3.6'
+          tags: true
+
+install:
+  - pip install -r dev-requirements.txt  # Needed for boto3
+  - pip install -r requirements.txt
+
 before_script:
-- python provision/provision.py populate ${TEST_ES_DOMAIN}
-# Wait a few seconds to let ES catch up
-- sleep 3
+  - python provision/provision.py populate ${TEST_ES_DOMAIN}
+  - sleep 3  # Wait a few seconds to let ES catch up
+
 script:
-- flake8 --select=E121,E123,E126,E226,E24,E704,W503,W504 --ignore=E501 app.py tests
-- nosetests
+  - nosetests
+
 after_script:
-- python provision/provision.py teardown ${TEST_ES_DOMAIN}
-# We want to deploy dos-azul-lambda to `dev` on every commit to master
-# that builds successfully and to `staging` on every tagged commit to
-# master that builds successfully.
-deploy:
-- provider: script
-  script: chalice deploy --stage dev --no-autogen-policy
-  on:
-    repo: DataBiosphere/dos-azul-lambda
-    branch: master
-    python: '3.6'
-- provider: script
-  script: chalice deploy --stage staging --no-autogen-policy
-  on:
-    branch: master
-    repo: DataBiosphere/dos-azul-lambda
-    python: '3.6'
-    tags: true
+  - python provision/provision.py raze ${TEST_ES_DOMAIN}
