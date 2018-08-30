@@ -1,9 +1,7 @@
 chalice>=1.6.0,<2
-requests
-PyYAML
 boto
 botocore
-#ga4gh-dos-schemas
+ga4gh-dos-schemas==0.4.1
 #bravado
 # implicit requirement from boto that travis complains about
 google_compute_engine
