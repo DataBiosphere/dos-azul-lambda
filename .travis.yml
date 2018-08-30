@@ -49,26 +49,38 @@ jobs:
     # master that builds successfully.
     - stage: deploy
       python: '3.6'
+      install: ignore
       before_script: ignore
       script: ignore
       after_script: ignore
-      before_deploy:
-        - cp .chalice/deployed/dev.travis.json .chalice/deployed/dev.json
-        - cp .chalice/deployed/staging.travis.json .chalice/deployed/staging.json
+      # A deficiency of using Travis's built-in Lambda provider is that we must
+      # manually synchronize environment variables set in `.chalice/config.json`
+      # and those specified for dos-azul-lambda-{dev,staging} specified below.
+      # For more information, see `.chalice/README.md`.
       deploy:
-      - provider: script
-        script: chalice deploy --stage dev --no-autogen-policy
-        on:
-          repo: DataBiosphere/dos-azul-lambda
-          branch: master
-          python: '3.6'
-      - provider: script
-        script: chalice deploy --stage staging --no-autogen-policy
-        on:
-          branch: master
-          repo: DataBiosphere/dos-azul-lambda
-          python: '3.6'
-          tags: true
+        - provider: lambda
+          function_name: 'dos-azul-lambda-dev'
+          region: 'us-west-2'
+          role: 'arn:aws:iam::719818754276:role/dos-azul-lambda-dev-api_handler'
+          runtime: 'python3.6'
+          handler_name: 'app.app'
+          publish: false  # replace the existing deployment
+          on:
+            repo: DataBiosphere/dos-azul-lambda
+            branch: master
+            python: '3.6'
+        - provider: lambda
+          function_name: 'dos-azul-lambda-staging'
+          region: 'us-west-2'
+          role: 'arn:aws:iam::719818754276:role/dos-azul-lambda-staging-api_handler'
+          runtime: 'python3.6'
+          handler_name: 'app.app'
+          publish: false  # replace the existing deployment
+          on:
+            branch: master
+            repo: DataBiosphere/dos-azul-lambda
+            python: '3.6'
+            tags: true
 
 install:
   - pip install -r dev-requirements.txt  # Needed for boto3
