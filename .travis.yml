@@ -49,7 +49,6 @@ jobs:
     # master that builds successfully.
     - stage: deploy
       python: '3.6'
-      install: ignore
       before_script: ignore
       script: ignore
       after_script: ignore
@@ -57,14 +56,19 @@ jobs:
       # manually synchronize environment variables set in `.chalice/config.json`
       # and those specified for dos-azul-lambda-{dev,staging} specified below.
       # For more information, see `.chalice/README.md`.
+      before_deploy:
+        - chalice package --stage dev deploy-dev/
+        - chalice package --stage staging deploy-staging/
       deploy:
         - provider: lambda
           function_name: 'dos-azul-lambda-dev'
           region: 'us-west-2'
           role: 'arn:aws:iam::719818754276:role/dos-azul-lambda-dev-api_handler'
           runtime: 'python3.6'
-          handler_name: 'app.app'
+          module_name: 'app'
+          handler_name: 'app'
           publish: false  # replace the existing deployment
+          zip: 'deploy-dev/deployment.zip'
           on:
             repo: DataBiosphere/dos-azul-lambda
             branch: master
@@ -74,8 +78,10 @@ jobs:
           region: 'us-west-2'
           role: 'arn:aws:iam::719818754276:role/dos-azul-lambda-staging-api_handler'
           runtime: 'python3.6'
-          handler_name: 'app.app'
+          module_name: 'app'
+          handler_name: 'app'
           publish: false  # replace the existing deployment
+          zip: 'deploy-staging/deployment.zip'
           on:
             branch: master
             repo: DataBiosphere/dos-azul-lambda
