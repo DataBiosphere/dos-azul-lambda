@@ -87,6 +87,13 @@ jobs:
             repo: DataBiosphere/dos-azul-lambda
             python: '3.6'
             tags: true
+      after_deploy:
+        # Once we deploy, we should check to see if the lambda is alive and
+        # well. We do this by making a request to the `/swagger.json` endpoint
+        # and checking the return code. If it returns HTTP 200, everything
+        # should be fine.
+        - sleep 10  # Wait for AWS to catch up
+        - curl -i https://dos.commons.ucsc-cgp-dev.org/swagger.json | grep "HTTP/1.1 200 OK"
 
 install:
   - pip install -r dev-requirements.txt  # Needed for boto3
