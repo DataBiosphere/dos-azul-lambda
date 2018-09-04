@@ -117,10 +117,6 @@ class ESConnection(AWSAuthConnection):
         return ['hmac-v4']
 
 
-# Ensure that you set 'host' below to the FQDN for YOUR
-# Elasticsearch service endpoint
-
-DEFAULT_HOST = 'search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com'
 DEFAULT_REGION = 'us-west-2'
 DEFAULT_ACCESS_TOKEN = 'f4ce9d3d23f4ac9dfdc3c825608dc660'
 
@@ -134,7 +130,11 @@ DOCTYPES = {
     'data_bdl': os.environ.get('DATA_BDL_DOCTYPE', 'databundle'),
 }
 
-es_host = os.environ.get('ES_HOST', DEFAULT_HOST)
+try:
+    es_host = os.environ['ES_HOST']
+except KeyError:
+    raise RuntimeError("You must specify the domain name of your ElasticSearch"
+                       " instance with the ES_HOST environment variable.")
 es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
 access_token = os.environ.get('ACCESS_KEY', DEFAULT_ACCESS_TOKEN)
 client = ESConnection(region=es_region, host=es_host, is_secure=False)
