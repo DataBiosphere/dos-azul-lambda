@@ -228,7 +228,7 @@ dos-azul-lambda can be configured by setting a number of environment variables:
 * Set `ES_HOST` to specify the hostname of the ElasticSearch instance. **This
   must be manually set.** The endpoint should be specified without a leading
   protocol (e.g. `search-es-instance-12345.us-west-2.es.amazonaws.com`).
-  For the `dev` stage deployment of dos-azul-lambda, `ES_HOST` points to
+  By default, on live deployments of dos-azul-lambda, `ES_HOST` points to
   `dss-azul-commons` (when deployed via `chalice` - see `.chalice/config.json`).
   (Note that you shouldn't run tests against `dss-azul-commons` as is - see #102.)
 * Set `ES_REGION` to override the default AWS region of the ElasticSearch
