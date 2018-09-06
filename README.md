@@ -111,6 +111,8 @@ Here is an example config.json
 Note the environment variables, which are passed to the application. The `ACCESS_KEY`
 should be a hard to guess string of letters and numbers. When requests to modify
 an index are made, this value is checked for in the `access_key` header of the request.
+Also note `ES_HOST` - this is the only mandatory variable. Without it, the lambda will
+not run.
 
 Then, create a file `.chalice/policy-dev.json` so it can access you azul index, assuming its
 permissions have been set to allow it.
@@ -223,10 +225,12 @@ dos-azul-lambda can be configured by setting a number of environment variables:
 * Set `DATA_BDL_DOCTYPE` to override the name of the ElasticSearch document type
   that dos-azul-lambda should expect to correspond with `DATA_BDL_INDEX`. By
   default, this is `databundle`.
-* Set `ES_HOST` to override the hostname of the ElasticSearch instance. By
-  default, this points to the `dss-azul-commons` ElasticSearch instance. This
-  variable should be specified without the protocol (i.e. without a leading
-  `http://` or `https://`).
+* Set `ES_HOST` to specify the hostname of the ElasticSearch instance. **This
+  must be manually set.** The endpoint should be specified without a leading
+  protocol (e.g. `search-es-instance-12345.us-west-2.es.amazonaws.com`).
+  By default, on live deployments of dos-azul-lambda, `ES_HOST` points to
+  `dss-azul-commons` (when deployed via `chalice` - see `.chalice/config.json`).
+  (Note that you shouldn't run tests against `dss-azul-commons` as is - see #102.)
 * Set `ES_REGION` to override the default AWS region of the ElasticSearch
   instance. By default, this is `us-west-2`.
 * Set `ACCESS_KEY` to override the default access token used to authenticate to
