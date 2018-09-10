@@ -126,10 +126,15 @@ def setup(es_domain=None):
         DomainName=es_domain,
         ElasticsearchVersion='5.5',
         ElasticsearchClusterConfig={
-            'InstanceType': 'i3.large.elasticsearch',
+            'InstanceType': 't2.small.elasticsearch',
             'InstanceCount': 1,
             'DedicatedMasterEnabled': False,
             'ZoneAwarenessEnabled': False,
+        },
+        EBSOptions={  # required for t2.small.elasticsearch
+            'EBSEnabled': True,
+            'VolumeType': 'standard',  # st1 is cheaper but not supported
+            'VolumeSize': 10,  # minimum for t2.small.elasticsearch
         },
         AccessPolicies=policy,
         CognitoOptions={'Enabled': False},
