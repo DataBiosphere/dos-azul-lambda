@@ -30,7 +30,7 @@ from chalice import Chalice, Response, BadRequestError, UnauthorizedError, \
 from boto.connection import AWSAuthConnection
 import ga4gh.dos.schema
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger('dos-azul-lambda')
 
 
@@ -183,7 +183,7 @@ def make_es_request(**kwargs):
     return r
 
 
-def es_query(query, index, size):
+def es_query(query, index, size, body={}):
     """
     Queries the configured ElasticSearch instance and returns the
     results as a list of dictionaries
@@ -192,12 +192,14 @@ def es_query(query, index, size):
                        the 'query' key of the request body
     :param str index: the name of the index to query
     :param int size: the amount of results to return
+    :param dict body: the raw body of the request to send
     :raises RuntimeError: if the response from the ElasticSearch instance
                           loads successfully but can't be understood by
                           dos-azul-lambda
     :rtype: list
     """
     dsl = {'size': size, 'query': query}
+    dsl.update(body)
     logger.debug("Querying index %s with query %r" % (index, dsl))
     query = make_es_request(method='GET', data=json.dumps(dsl),
                             path='/{index}/_search'.format(index=index))
@@ -329,17 +331,23 @@ def list_data_objects(**kwargs):
     :rtype: ListDataObjectsResponse
     """
     req_body = app.current_request.query_params or {}
-    page_token = req_body.get('page_token', 0)
     per_page = int(req_body.get('page_size', 10))
-    if req_body.get('alias', None):
-        results = azul_match_alias(index=INDEXES['data_obj'],
-                                   alias=req_body['alias'], size=per_page + 1,
-                                   from_=page_token if page_token != 0 else None)
-    else:
-        results = es_query(query={}, index=INDEXES['data_obj'], size=per_page + 1)
+
+    # Build the query. If multiple criteria are specified, returned objects
+    # should match all of the provided criteria (logical AND).
+    query = {'query': {}}
+    if 'page_token' in req_body:
+        query['from'] = req_body['page_token'] or 0
+    if 'alias' in req_body:
+        query['query']['term'] = {}
+        query['query']['term']['aliases.keyword'] = req_body['alias']
+    else:  # if no query parameters are provided
+        query['query']['match_all'] = {}
+    results = es_query(query={}, body=query, index=INDEXES['data_obj'], size=per_page + 1)
+
     response = {'data_objects': [azul_to_obj(x) for x in results[:per_page]]}
     if len(results) > per_page:
-        response['next_page_token'] = str(int(page_token) + 1)
+        response['next_page_token'] = str(int(req_body.get('page_token', 0)) + 1)
     return response
 
 
