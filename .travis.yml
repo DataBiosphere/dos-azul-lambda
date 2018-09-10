@@ -101,7 +101,7 @@ install:
 
 before_script:
   - python provision/provision.py populate ${TEST_ES_DOMAIN}
-  - sleep 3  # Wait a few seconds to let ES catch up
+  - sleep 10  # Wait for ES to catch up
 
 script:
   - nosetests
