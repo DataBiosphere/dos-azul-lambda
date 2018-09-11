@@ -30,7 +30,7 @@ from chalice import Chalice, Response, BadRequestError, UnauthorizedError, \
 from boto.connection import AWSAuthConnection
 import ga4gh.dos.schema
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('dos-azul-lambda')
 
 
@@ -183,7 +183,7 @@ def make_es_request(**kwargs):
     return r
 
 
-def es_query(query, index, size, body={}):
+def es_query(query, index, size, body=None):
     """
     Queries the configured ElasticSearch instance and returns the
     results as a list of dictionaries
@@ -199,7 +199,8 @@ def es_query(query, index, size, body={}):
     :rtype: list
     """
     dsl = {'size': size, 'query': query}
-    dsl.update(body)
+    if body:
+        dsl.update(body)
     logger.debug("Querying index %s with query %r" % (index, dsl))
     query = make_es_request(method='GET', data=json.dumps(dsl),
                             path='/{index}/_search'.format(index=index))
@@ -336,11 +337,31 @@ def list_data_objects(**kwargs):
     # Build the query. If multiple criteria are specified, returned objects
     # should match all of the provided criteria (logical AND).
     query = {'query': {}}
-    if 'page_token' in req_body:
+    if 'page_token' in req_body:  # for paging
         query['from'] = req_body['page_token'] or 0
-    if 'alias' in req_body:
-        query['query']['term'] = {}
-        query['query']['term']['aliases.keyword'] = req_body['alias']
+    if 'alias' in req_body or 'checksum' in req_body or 'url' in req_body:
+        query['query']['bool'] = {'filter': []}
+        # Azul only stores MD5s so there are no results if checksum_type != md5
+        if 'checksum_type' in req_body and req_body['checksum_type'].lower() != 'md5':
+            return {'data_objects': []}
+        if 'alias' in req_body:
+            query['query']['bool']['filter'].append({
+                'term': {
+                    'aliases.keyword': {'value': req_body['alias']}
+                }
+            })
+        if 'checksum' in req_body:
+            query['query']['bool']['filter'].append({
+                'term': {
+                    'fileMd5sum.keyword': {'value': req_body['checksum']}
+                }
+            })
+        if 'url' in req_body:
+            query['query']['bool']['filter'].append({
+                'term': {
+                    'urls.keyword': {'value': req_body['url']}
+                }
+            })
     else:  # if no query parameters are provided
         query['query']['match_all'] = {}
     results = es_query(query={}, body=query, index=INDEXES['data_obj'], size=per_page + 1)
