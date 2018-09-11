@@ -11,10 +11,10 @@ python:
 # to start a new ElasticSearch instance.
 env:
   global:
-    - ES_HOST="search-dos-azul-test-7f6ecc04-xfo4lbmxzvafkrw5pbslkggpye.us-west-2.es.amazonaws.com"
+    - ES_HOST="search-dos-azul-test-f612cc56-upv6ilywi26bm2jb3xxgszqq7q.us-west-2.es.amazonaws.com"
     - DATA_OBJ_INDEX="dataobj_${RANDOM}"
     - DATA_BDL_INDEX="databdl_${RANDOM}"
-    - TEST_ES_DOMAIN="dos-azul-test-7f6ecc04"
+    - TEST_ES_DOMAIN="dos-azul-test-f612cc56"
 
 # Specifying `branches.only = ['master']` can cause tagged builds to
 # not deploy. See travis-ci/travis-ci#2498 and travis-ci/travis-ci#1675.
@@ -101,7 +101,7 @@ install:
 
 before_script:
   - python provision/provision.py populate ${TEST_ES_DOMAIN}
-  - sleep 3  # Wait a few seconds to let ES catch up
+  - sleep 10  # Wait for ES to catch up
 
 script:
   - nosetests
