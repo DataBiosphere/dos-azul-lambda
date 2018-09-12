@@ -183,26 +183,20 @@ def make_es_request(**kwargs):
     return r
 
 
-def es_query(query, index, size, body=None):
+def es_query(index, **query):
     """
     Queries the configured ElasticSearch instance and returns the
     results as a list of dictionaries
 
-    :param dict query: the ElasticSearch DSL query, as it would appear under
-                       the 'query' key of the request body
+    :param query: key-value pairs to insert into the the ElasticSearch query
     :param str index: the name of the index to query
-    :param int size: the amount of results to return
-    :param dict body: the raw body of the request to send
     :raises RuntimeError: if the response from the ElasticSearch instance
                           loads successfully but can't be understood by
                           dos-azul-lambda
     :rtype: list
     """
-    dsl = {'size': size, 'query': query}
-    if body:
-        dsl.update(body)
-    logger.debug("Querying index %s with query %r" % (index, dsl))
-    query = make_es_request(method='GET', data=json.dumps(dsl),
+    logger.debug("Querying index %s with query %r" % (index, query))
+    query = make_es_request(method='GET', data=json.dumps(query),
                             path='/{index}/_search'.format(index=index))
     response = json.loads(query.read())
     try:
@@ -336,7 +330,7 @@ def list_data_objects(**kwargs):
 
     # Build the query. If multiple criteria are specified, returned objects
     # should match all of the provided criteria (logical AND).
-    query = {'query': {}}
+    query = {'query': {}, 'size': per_page + 1}
     if 'page_token' in req_body:  # for paging
         query['from'] = req_body['page_token'] or 0
     if 'alias' in req_body or 'checksum' in req_body or 'url' in req_body:
@@ -364,7 +358,7 @@ def list_data_objects(**kwargs):
             })
     else:  # if no query parameters are provided
         query['query']['match_all'] = {}
-    results = es_query(query={}, body=query, index=INDEXES['data_obj'], size=per_page + 1)
+    results = es_query(index=INDEXES['data_obj'], **query)
 
     response = {'data_objects': [azul_to_obj(x) for x in results[:per_page]]}
     if len(results) > per_page:
