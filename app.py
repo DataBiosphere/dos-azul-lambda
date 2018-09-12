@@ -51,6 +51,7 @@ def azul_to_obj(result):
     data_object['checksums'] = [
         {'checksum': azul['fileMd5sum'], 'type': 'md5'}]
     data_object['aliases'] = azul['aliases']
+    data_object['created'] = azul['lastModified'].rstrip('Z') + 'Z'
     data_object['updated'] = azul['lastModified'].rstrip('Z') + 'Z'
     data_object['name'] = azul['title']
     return data_object
@@ -58,19 +59,22 @@ def azul_to_obj(result):
 
 def obj_to_azul(data_object):
     """
-    Takes a Data Object and converts it to an Azul object.
+    Takes a data object and converts it to an Azul object.
     :rtype: dict
     """
-    obj = data_object
-    checksum = obj['checksums'][0]
-    obj['file_id'] = obj.pop('id')
-    obj['urls'] = [url['url'] for url in obj['urls']]
-    obj['file_version'] = obj.pop('version')
-    obj['fileSize'] = obj.pop('size', '')
-    obj['fileMd5sum'] = checksum['checksum'] if checksum['type'] == 'md5' else ''
-    obj['lastModified'] = obj.pop('updated').rstrip('Z')
-    obj['title'] = obj.pop('name')
-    return obj
+    checksum = data_object['checksums'][0]
+    azul = {
+        'file_id': data_object['id'],
+        'title': data_object.get('name', ''),  # name is optional
+        'fileSize': data_object.get('size', ''),
+        # updated is optional but created is not
+        'lastModified': data_object.get('updated', data_object['created']).rstrip('Z'),
+        'file_version': data_object.get('version'),
+        'fileMd5sum': checksum['checksum'] if checksum['type'] == 'md5' else '',
+        'urls': [url['url'] for url in data_object['urls']],
+        'aliases': data_object.get('aliases'),  # aliases are optional
+    }
+    return azul
 
 
 def azul_to_bdl(result):
@@ -412,9 +416,9 @@ def update_data_object(data_object_id):
         raise BadRequestError("Please add a data_object to the body of your request.")
 
     # Now that we know everything is okay, do the actual update
-    path = '/{}/{}/{}'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
-    data = json.dumps(obj_to_azul(body['data_object']))
-    make_es_request(method='PUT', path=path, data=data)
+    path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
+    data = json.dumps({'doc': obj_to_azul(body['data_object'])})
+    make_es_request(method='POST', path=path, data=data)
     return {'data_object_id': data_object_id}
 
 
