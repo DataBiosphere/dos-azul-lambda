@@ -21,6 +21,7 @@
 # * Between all of this, exception logging should occur at the lowest level,
 #   next to where an exception is raised. This generally means
 #   :func:`make_es_request` and :func:`es_query`.
+import datetime
 import json
 import logging
 import os
@@ -28,10 +29,29 @@ import os
 from chalice import Chalice, Response, BadRequestError, UnauthorizedError, \
     NotFoundError, ChaliceViewError
 from boto.connection import AWSAuthConnection
+import ga4gh.dos.client
 import ga4gh.dos.schema
+import pytz
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('dos-azul-lambda')
+
+# We only need the client for the models, so we can provide any URL
+dos_client = ga4gh.dos.client.Client(url='https://example.com/abc', local=True)
+
+
+def model(model_name, **kwargs):
+    return dos_client.models.get_model(model_name)(**kwargs)
+
+
+def parse_azul_date(azul_date):
+    """
+    :rtype: datetime.datetime
+    """
+    # Process the string first to account for inconsistencies in date storage in Azul
+    date = azul_date.rstrip('Z').replace(':', '') + 'Z'
+    date = datetime.datetime.strptime(date, '%Y-%m-%dT%H%M%S.%fZ')
+    return date.replace(tzinfo=pytz.utc)
 
 
 def azul_to_obj(result):
@@ -40,37 +60,46 @@ def azul_to_obj(result):
     object.
 
     :param result: the ElasticSearch result dictionary
-    :return: DataObject
+    :rtype: DataObject
     """
     azul = result['_source']
-    data_object = {}
-    data_object['id'] = azul['file_id']
-    data_object['urls'] = [{'url': url} for url in azul['urls']]
-    data_object['version'] = azul['file_version']
-    data_object['size'] = str(azul.get('fileSize', ''))
-    data_object['checksums'] = [
-        {'checksum': azul['fileMd5sum'], 'type': 'md5'}]
-    data_object['aliases'] = azul['aliases']
-    data_object['updated'] = azul['lastModified'].rstrip('Z') + 'Z'
-    data_object['name'] = azul['title']
+    data_object = model(
+        model_name='DataObject',
+        id=azul['file_id'],
+        name=azul['title'],
+        size=str(azul.get('fileSize', '')),
+        created=parse_azul_date(azul['lastModified']),
+        updated=parse_azul_date(azul['lastModified']),
+        version=azul['file_version'],
+        checksums=[model('Checksum', checksum=azul['fileMd5sum'], type='md5')],
+        urls=[model('URL', url=url) for url in azul['urls']],
+        aliases=azul['aliases'],
+    )
     return data_object
 
 
 def obj_to_azul(data_object):
     """
-    Takes a Data Object and converts it to an Azul object.
+    Takes a data object and converts it to an Azul object.
     :rtype: dict
     """
-    obj = data_object
-    checksum = obj['checksums'][0]
-    obj['file_id'] = obj.pop('id')
-    obj['urls'] = [url['url'] for url in obj['urls']]
-    obj['file_version'] = obj.pop('version')
-    obj['fileSize'] = obj.pop('size', '')
-    obj['fileMd5sum'] = checksum['checksum'] if checksum['type'] == 'md5' else ''
-    obj['lastModified'] = obj.pop('updated').rstrip('Z')
-    obj['title'] = obj.pop('name')
-    return obj
+    # updated is optional but created is not
+    date = data_object.get('updated', data_object['created']).replace(':', '')
+    date = datetime.datetime.strptime(date, '%Y-%m-%dT%H%M%S.%f+0000')
+    date = date.replace(tzinfo=pytz.utc)
+    date = date.strftime('%Y-%m-%dT%H%M%S.%fZ')
+    checksum = data_object['checksums'][0]
+    azul = {
+        'file_id': data_object['id'],
+        'title': data_object.get('name', ''),  # name is optional
+        'fileSize': data_object.get('size', ''),
+        'lastModified': date,
+        'file_version': data_object.get('version'),
+        'fileMd5sum': checksum['checksum'] if checksum['type'] == 'md5' else '',
+        'urls': [url['url'] for url in data_object['urls']],
+        'aliases': data_object.get('aliases'),  # aliases are optional
+    }
+    return azul
 
 
 def azul_to_bdl(result):
@@ -82,19 +111,22 @@ def azul_to_bdl(result):
     :return: DataBundle
     """
     azul = result['_source']
-    bundle = {
-        'id': azul['id'],
-        'version': azul['version'],
-        'checksums': [{'checksum': c.split(':')[0], 'type': c.split(':')[1]} for c in azul['checksums']],
-        'updated': azul['updated'] + 'Z',
-        'created': azul['created'] + 'Z',
-        'descrption': azul.get('description', ''),
-        'data_object_ids': azul['data_object_ids'],
-    }
-    # remove multiply valued items before we move into aliases
-    del azul['checksums']
-    bundle['aliases'] = ['{}:{}'.format(k, v) for k, v in azul.items()]
-    return bundle
+    data_bundle = model(
+        model_name='DataBundle',
+        id=azul['id'],
+        data_object_ids=azul['data_object_ids'],
+        created=parse_azul_date(azul['created']),
+        updated=parse_azul_date(azul['updated']),
+        version=azul['version'],
+        description=azul.get('description', ''),  # optional field
+        aliases=azul.get('aliases', ''),  # optional field
+    )
+    data_bundle.checksums = []
+    for checksum in azul['checksums']:
+        checksum, checksum_type = checksum.split(':', 1)
+        data_bundle.checksums.append(model('Checksum', checksum=checksum, type=checksum_type))
+
+    return data_bundle
 
 
 def check_auth():
@@ -250,7 +282,7 @@ def azul_match_alias(index, alias, from_=None, size=10):
     return query
 
 
-def azul_get_document(key, val, name, es_index, map_fn):
+def azul_get_document(key, val, name, es_index, map_fn, model):
     """
     Queries ElasticSearch for a single document and returns a
     :class:`~chalice.Response` object with the retrieved data. Wrapper
@@ -262,6 +294,7 @@ def azul_get_document(key, val, name, es_index, map_fn):
     :param str es_index: the name of the index to query in ElasticSearch
     :param callable map_fn: function mapping the returned Azul document to a
                             DOS format
+    :param model: DOS response model
     :raises RuntimeError: if the ElasticSearch response is not understood
     :rvtype: :class:`chalice.Response`
     :returns: the retrieved data or the error state
@@ -288,7 +321,7 @@ def azul_get_document(key, val, name, es_index, map_fn):
                          " {fn}".format(name=name, key=key, val=val,
                                         es_index=es_index, fn=map_fn.func_name))
         raise ChaliceViewError("There was a problem communicating with Azul.")
-    return Response({name: data}, status_code=200)
+    return Response(model(**{name: data}).marshal(), status_code=200)
 
 
 @app.route(base_path + '/dataobjects/{data_object_id}', methods=['GET'], cors=True)
@@ -301,7 +334,8 @@ def get_data_object(data_object_id):
     :rtype: DataObject
     """
     return azul_get_document(key='file_id', val=data_object_id, name='data_object',
-                             map_fn=azul_to_obj, es_index=INDEXES['data_obj'])
+                             map_fn=azul_to_obj, es_index=INDEXES['data_obj'],
+                             model=dos_client.models.get_model('GetDataObjectResponse'))
 
 
 @app.route(base_path + '/databundles/{data_bundle_id}', methods=['GET'], cors=True)
@@ -314,7 +348,8 @@ def get_data_bundle(data_bundle_id):
     :rtype: DataBundle
     """
     return azul_get_document(key='id', val=data_bundle_id, name='data_bundle',
-                             map_fn=azul_to_bdl, es_index=INDEXES['data_bdl'])
+                             map_fn=azul_to_bdl, es_index=INDEXES['data_bdl'],
+                             model=dos_client.models.get_model('GetDataBundleResponse'))
 
 
 @app.route(base_path + '/dataobjects', methods=['GET'], cors=True)
@@ -359,11 +394,11 @@ def list_data_objects(**kwargs):
     else:  # if no query parameters are provided
         query['query']['match_all'] = {}
     results = es_query(index=INDEXES['data_obj'], **query)
-
-    response = {'data_objects': [azul_to_obj(x) for x in results[:per_page]]}
+    response = model('ListDataObjectsResponse')
+    response.data_objects = [azul_to_obj(x) for x in results[:per_page]]
     if len(results) > per_page:
-        response['next_page_token'] = str(int(req_body.get('page_token', 0)) + 1)
-    return response
+        response.next_page_token = str(int(req_body.get('page_token', 0)) + 1)
+    return response.marshal()
 
 
 @app.route(base_path + '/databundles', methods=['GET'], cors=True)
@@ -383,10 +418,11 @@ def list_data_bundles(**kwargs):
                                    from_=page_token if page_token != 0 else None)
     else:
         results = es_query(query={}, index=INDEXES['data_bdl'], size=per_page + 1)
-    response = {'data_bundles': [azul_to_bdl(x) for x in results[:per_page]]}
+    response = model('ListDataBundlesResponse')
+    response.data_bundles = [azul_to_bdl(x) for x in results[:per_page]]
     if len(results) > per_page:
-        response['next_page_token'] = str(int(page_token) + 1)
-    return response
+        response.next_page_token = str(int(page_token) + 1)
+    return response.marshal()
 
 
 @app.route(base_path + '/dataobjects/{data_object_id}', methods=['PUT'], cors=True)
@@ -412,10 +448,10 @@ def update_data_object(data_object_id):
         raise BadRequestError("Please add a data_object to the body of your request.")
 
     # Now that we know everything is okay, do the actual update
-    path = '/{}/{}/{}'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
-    data = json.dumps(obj_to_azul(body['data_object']))
-    make_es_request(method='PUT', path=path, data=data)
-    return {'data_object_id': data_object_id}
+    path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
+    data = json.dumps({'doc': obj_to_azul(body['data_object'])})
+    make_es_request(method='POST', path=path, data=data)
+    return model('UpdateDataObjectResponse', data_object_id=data_object_id).marshal()
 
 
 @app.route('/swagger.json', cors=True)
