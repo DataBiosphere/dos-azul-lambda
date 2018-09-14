@@ -248,3 +248,21 @@ This notebook will guide you through basic read access to data in the DSS via DO
 
 If you have a problem accessing the service or deploying it for yourself, please head
 over to [the Issues](https://github.com/DataBiosphere/dos-azul-lambda/issues) to let us know!
+
+### Release strategy
+
+Releases are marked with a GitHub Release and a tagged commit in the format `x.y.z`. (Travis won't
+pick up a tagged commit with any other format.) Releases are made consistent with [Semantic Versioning](https://semver.org)
+(though that also means that until a 1.0.0 release is made, most of the rules of semantic versioning
+don't apply).
+
+At the time of writing, releases are made available like so:
+ 
+* Each commit triggers a deployment to https://dos.commons.ucsc-cgp-dev.org/ga4gh/dos/v1/,
+  the bleeding-edge dev deployment.
+* Each tagged release triggers a deployment to https://a4m3r21xx5.execute-api.us-west-2.amazonaws.com/ga4gh/dos/v1,
+  the slightly-less-bloody-edge staging deployment. (No custom domain yet, sorry.)
+* The production endpoint, available at https://dos.commons.ucsc-cgp.org/ga4gh/dos/v1,
+  is maintained manually.
+
+Deployments are managed by Travis in [.travis.yml](.travis.yml).
