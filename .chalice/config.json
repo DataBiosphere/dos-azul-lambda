@@ -5,6 +5,9 @@
       "environment_variables": {
          "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2"
+      },
+      "tags": {
+        "ENV": "DEV"
       }
     },
     "staging": {
@@ -12,6 +15,9 @@
       "environment_variables": {
          "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2"
+      },
+      "tags": {
+        "ENV": "DEV"
       }
     },
     "prod": {
@@ -19,6 +25,9 @@
       "environment_variables": {
          "ES_HOST": "search-dss-azul-commons-lx3ltgewjw5wiw2yrxftoqr7jy.us-west-2.es.amazonaws.com",
          "ES_REGION": "us-west-2"
+      },
+      "tags": {
+        "ENV": "PROD"
       }
     }
   },
@@ -27,5 +36,9 @@
   "environment_variables": {
     "DATA_OBJ_INDEX": "fb_index",
     "DEBUG": "False"
+  },
+  "tags": {
+    "Owner": "davidcs@ucsc.edu",
+    "PURPOSE": "username=nalao:project=DataBiosphere/dos-azul-lambda:coordinator=casloan@ucsc.edu"
   }
 }
