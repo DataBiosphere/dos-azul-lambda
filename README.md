@@ -1,6 +1,6 @@
 # dos-azul-lambda
 
-<img src="https://travis-ci.org/DataBiosphere/dos-azul-lambda.svg?branch=master" />
+[![Build Status](https://travis-ci.org/DataBiosphere/dos-azul-lambda.svg?branch=master)](https://travis-ci.org/DataBiosphere/dos-azul-lambda)
 
 This presents an [Amazon Lambda](https://aws.amazon.com/lambda/) microservice
 following the [Data Object Service](https://github.com/ga4gh/data-object-service-schemas) ([view the OpenAPI description](https://ga4gh.github.io/data-object-service-schemas/)!).
