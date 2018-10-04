@@ -5,8 +5,7 @@
 #     /__\   snake case (e.g. list_data_bundles).
 #    /    \  * ElasticSearch helper functions that implement common query types
 #   /______\   such as matching on a certain field, with names matching `azul_*`
-#  /        \  * :func:`make_es_request`, and :func:`es_query`, which make the
-# /__________\    actual ElasticSearch requests using :mod:`requests`
+#  /________\  * The ElasticSearch bindings.
 #
 # Error catching should be handled as follows:
 # * Functions that return :class:`~chalice.Response` objects should raise
@@ -19,16 +18,16 @@
 #   exceptions.
 # * Endpoint handlers should raise exceptions consistent with the DOS schema.
 # * Between all of this, exception logging should occur at the lowest level,
-#   next to where an exception is raised. This generally means
-#   :func:`make_es_request` and :func:`es_query`.
+#   next to where an exception is raised.
 import datetime
-import json
 import logging
 import os
 
+import aws_requests_auth.aws_auth
+import boto3.session
 from chalice import Chalice, Response, BadRequestError, UnauthorizedError, \
     NotFoundError, ChaliceViewError
-from boto.connection import AWSAuthConnection
+import elasticsearch
 import ga4gh.dos.client
 import ga4gh.dos.schema
 import pytz
@@ -139,16 +138,6 @@ def check_auth():
     return app.current_request.headers.get('access_token', None) == access_token
 
 
-class ESConnection(AWSAuthConnection):
-    def __init__(self, region, **kwargs):
-        super(ESConnection, self).__init__(**kwargs)
-        self._set_auth_region_name(region)
-        self._set_auth_service_name('es')
-
-    def _required_auth_capability(self):
-        return ['hmac-v4']
-
-
 DEFAULT_REGION = 'us-west-2'
 DEFAULT_ACCESS_TOKEN = 'f4ce9d3d23f4ac9dfdc3c825608dc660'
 
@@ -169,7 +158,24 @@ except KeyError:
                        " instance with the ES_HOST environment variable.")
 es_region = os.environ.get('ES_REGION', DEFAULT_REGION)
 access_token = os.environ.get('ACCESS_KEY', DEFAULT_ACCESS_TOKEN)
-client = ESConnection(region=es_region, host=es_host, is_secure=False)
+
+session = boto3.session.Session()
+credentials = session.get_credentials().get_frozen_credentials()
+awsauth = aws_requests_auth.aws_auth.AWSRequestsAuth(
+    aws_access_key=credentials.access_key,
+    aws_secret_access_key=credentials.secret_key,
+    aws_token=credentials.token,
+    aws_host=es_host,
+    aws_region=session.region_name,
+    aws_service='es'
+)
+es = elasticsearch.Elasticsearch(
+    hosts=[{'host': es_host, 'port': 443}],
+    http_auth=awsauth,
+    use_ssl=True,
+    verify_certs=True,
+    connection_class=elasticsearch.RequestsHttpConnection
+)
 app = Chalice(app_name='dos-azul-lambda')
 app.debug = os.environ.get('DEBUG', False) == 'True'
 
@@ -178,8 +184,7 @@ base_path = '/ga4gh/dos/v1'
 
 @app.route('/', cors=True)
 def index():
-    resp = make_es_request(method='GET', path='/')
-    return resp.read()
+    return es.info()  # Returns a 2-tuple: (health info as JSON, status code)
 
 
 @app.route('/test_token', methods=["GET", "POST"], cors=True)
@@ -193,53 +198,6 @@ def test_token():
     return Response(body, status_code=200 if body['authorized'] else 401)
 
 
-def make_es_request(**kwargs):
-    """
-    Wrapper around :meth:`ESConnection.make_request` that checks if the
-    request was completed successfully.
-    :param kwargs: same as arguments to :meth:`ESConnection.make_request`
-    :raises RuntimeError: if the request does not return HTTP 200
-    """
-    request = "%s %s" % (kwargs['method'], kwargs['path'])
-    logger.debug(request + " " + kwargs.get('data', ""))
-    r = client.make_request(**kwargs)
-    if r.status != 200:
-        data = json.loads(r.read())
-        data = data.get('Message', '') or data.get('reason', '') or repr(data)
-        msg = "%s returned code %d, expcted 200: %s" % (request, r.status, data)
-        logger.exception(msg)
-        raise RuntimeError(msg)
-    # If `app.debug=False` (which it is for deployments), an uncaught
-    # exception will cause the server to automatically return a 500 response
-    # with a nice error message and interally log a traceback.
-    return r
-
-
-def es_query(index, **query):
-    """
-    Queries the configured ElasticSearch instance and returns the
-    results as a list of dictionaries
-
-    :param query: key-value pairs to insert into the the ElasticSearch query
-    :param str index: the name of the index to query
-    :raises RuntimeError: if the response from the ElasticSearch instance
-                          loads successfully but can't be understood by
-                          dos-azul-lambda
-    :rtype: list
-    """
-    logger.debug("Querying index %s with query %r" % (index, query))
-    query = make_es_request(method='GET', data=json.dumps(query),
-                            path='/{index}/_search'.format(index=index))
-    response = json.loads(query.read())
-    try:
-        hits = response['hits']['hits']
-    except KeyError:
-        msg = "ElasticSearch returned an unexpected response: %s", query.read()
-        logger.exception(msg)
-        raise RuntimeError(msg)
-    return hits
-
-
 def azul_match_field(index, key, val, size=1):
     """
     Wrapper function around :func:`es_query`. Should be used for queries
@@ -251,13 +209,12 @@ def azul_match_field(index, key, val, size=1):
     :raises LookupError: if no results are returned
     :rtype: :class:`AzulDocument`
     """
-    results = es_query(index=index, size=size,
-                       query={'bool': {'must': {'term': {key: val}}}})
+    results = es.search(index=index, size=size, body={'query': {'bool': {'must': {'term': {key: val}}}}})
     if len(results) < 1:
         # We don't need to log an exception here since this kind of error could
         # occur if a user requests a file that does not exist.
         raise LookupError("Query returned no results")
-    return results[0]
+    return results['hits']['hits'][0]
 
 
 def azul_match_alias(index, alias, from_=None, size=10):
@@ -273,13 +230,8 @@ def azul_match_alias(index, alias, from_=None, size=10):
     :raises LookupError: if no results are returned
     :rtype: list
     """
-    dsl = {'term': {'aliases.keyword': alias}}
-    if from_:
-        dsl['from'] = from_
-    # es_query will raise a RuntimeError if it doesn't understand the ES response
-    # There isn't really any other exception we can check for here.
-    query = es_query(index=index, query=dsl, size=size)
-    return query
+    return es.search(index=index, size=size, from_=from_ or 0,  # short circuiting
+                     body={'query': {'term': {'aliases.keyword': alias}}})['hits']['hits']
 
 
 def azul_get_document(key, val, name, es_index, map_fn, model):
@@ -365,9 +317,9 @@ def list_data_objects(**kwargs):
 
     # Build the query. If multiple criteria are specified, returned objects
     # should match all of the provided criteria (logical AND).
-    query = {'query': {}, 'size': per_page + 1}
+    query = {'query': {}, 'size': per_page + 1, 'index': INDEXES['data_obj']}
     if 'page_token' in req_body:  # for paging
-        query['from'] = req_body['page_token'] or 0
+        query['from_'] = req_body['page_token']
     if 'alias' in req_body or 'checksum' in req_body or 'url' in req_body:
         query['query']['bool'] = {'filter': []}
         # Azul only stores MD5s so there are no results if checksum_type != md5
@@ -393,7 +345,8 @@ def list_data_objects(**kwargs):
             })
     else:  # if no query parameters are provided
         query['query']['match_all'] = {}
-    results = es_query(index=INDEXES['data_obj'], **query)
+    query['body'] = {'query': query.pop('query')}
+    results = es.search(**query)['hits']['hits']
     response = model('ListDataObjectsResponse')
     response.data_objects = [azul_to_obj(x) for x in results[:per_page]]
     if len(results) > per_page:
@@ -417,7 +370,8 @@ def list_data_bundles(**kwargs):
                                    alias=req_body['alias'], size=per_page + 1,
                                    from_=page_token if page_token != 0 else None)
     else:
-        results = es_query(query={}, index=INDEXES['data_bdl'], size=per_page + 1)
+        results = es.search(body={'query': {}}, index=INDEXES['data_bdl'],
+                            size=per_page + 1)['hits']['hits']
     response = model('ListDataBundlesResponse')
     response.data_bundles = [azul_to_bdl(x) for x in results[:per_page]]
     if len(results) > per_page:
@@ -448,9 +402,8 @@ def update_data_object(data_object_id):
         raise BadRequestError("Please add a data_object to the body of your request.")
 
     # Now that we know everything is okay, do the actual update
-    path = '/{}/{}/{}/_update'.format(INDEXES['data_obj'], DOCTYPES['data_obj'], source['_id'])
-    data = json.dumps({'doc': obj_to_azul(body['data_object'])})
-    make_es_request(method='POST', path=path, data=data)
+    data = {'doc': obj_to_azul(body['data_object'])}
+    es.update(index=INDEXES['data_obj'], doc_type=DOCTYPES['data_obj'], id=source['_id'], body=data)
     return model('UpdateDataObjectResponse', data_object_id=data_object_id).marshal()
 
 

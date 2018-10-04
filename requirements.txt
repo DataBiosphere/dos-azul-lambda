@@ -1,7 +1,6 @@
+aws-requests-auth==0.4.2
+boto3==1.7.59
 chalice>=1.6.0,<2
-boto
-botocore
+# Updates to the elasticsearch dependency should fall within elasticsearch>=5.0.0,<6.0.0
+elasticsearch==5.5.3
 ga4gh-dos-schemas==0.4.2
-#bravado
-# implicit requirement from boto that travis complains about
-google_compute_engine
