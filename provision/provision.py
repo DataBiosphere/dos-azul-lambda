@@ -72,7 +72,10 @@ def populate_domain(endpoint):
             'data_obj': obj_index,
             'data_bdl': bdl_index
         })
-        es.bulk(body=payload)
+        # The testing instance that we use is a t2.micro (since we keep it
+        # alive between builds) and sometimes this request takes a little
+        # longer than the default of ten seconds to complete.
+        es.bulk(body=payload, request_timeout=30)
 
 
 def raze_domain(endpoint):
