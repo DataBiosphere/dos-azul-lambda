@@ -177,7 +177,7 @@ es = elasticsearch.Elasticsearch(
     connection_class=elasticsearch.RequestsHttpConnection
 )
 app = Chalice(app_name='dos-azul-lambda')
-app.debug = os.environ.get('DEBUG', True) == 'True'
+app.debug = os.environ.get('DEBUG', 'True') == 'True'
 
 base_path = '/ga4gh/dos/v1'
 
