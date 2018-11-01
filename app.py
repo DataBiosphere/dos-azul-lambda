@@ -381,7 +381,12 @@ def list_data_bundles(**kwargs):
 
 @app.route(base_path + '/service-info', methods=['GET'], cors=True)
 def get_service_info():
-    return {"version": "0.4.0", "name" : "dos-azul-lambda", "description" : "This presents an Amazon Lambda microservice following the Data Object Service. It allows data in the Human Cell Atlas Data Store to be accessed using Data Object Service APIs."}
+    return {
+        'version': __version__,
+        'name': "dos-azul-lambda",
+        'description': "Lambda that allows data in the Human Cell Atlas Data Store to be accessed using the Data "
+                    "Object Service API. See more at https://github.com/DataBiosphere/dos-azul-lambda"
+        }
 
 
 @app.route(base_path + '/dataobjects/{data_object_id}', methods=['PUT'], cors=True)
