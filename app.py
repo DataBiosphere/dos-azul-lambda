@@ -386,7 +386,7 @@ def get_service_info():
         'version': __version__,
         'name': "dos-azul-lambda",
         'description': "Lambda that allows data in the Human Cell Atlas Data Store to be accessed using the Data "
-                    "Object Service API. See more at https://github.com/DataBiosphere/dos-azul-lambda"
+                       "Object Service API. See more at https://github.com/DataBiosphere/dos-azul-lambda"
         }
 
 
