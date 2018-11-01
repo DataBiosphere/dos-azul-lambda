@@ -32,6 +32,7 @@ import ga4gh.dos.client
 import ga4gh.dos.schema
 import pytz
 
+__version__ = "0.4.0"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('dos-azul-lambda')
 
@@ -379,6 +380,16 @@ def list_data_bundles(**kwargs):
     return response.marshal()
 
 
+@app.route(base_path + '/service-info', methods=['GET'], cors=True)
+def get_service_info():
+    return {
+        'version': __version__,
+        'name': "dos-azul-lambda",
+        'description': "Lambda that allows data in the Human Cell Atlas Data Store to be accessed using the Data "
+                       "Object Service API. See more at https://github.com/DataBiosphere/dos-azul-lambda"
+        }
+
+
 @app.route(base_path + '/dataobjects/{data_object_id}', methods=['PUT'], cors=True)
 def update_data_object(data_object_id):
     """
@@ -415,3 +426,4 @@ def swagger():
     swagger = ga4gh.dos.schema.from_chalice_routes(app.routes)
     swagger['basePath'] = '/api/ga4gh/dos/v1'
     return swagger
+
