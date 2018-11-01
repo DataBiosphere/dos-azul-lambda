@@ -32,6 +32,7 @@ import ga4gh.dos.client
 import ga4gh.dos.schema
 import pytz
 
+__version__ = "0.4.0"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('dos-azul-lambda')
 
