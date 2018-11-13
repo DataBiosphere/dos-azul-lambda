@@ -387,7 +387,7 @@ def get_service_info():
         'name': "dos-azul-lambda",
         'description': "Lambda that allows data in the Human Cell Atlas Data Store to be accessed using the Data "
                        "Object Service API. See more at https://github.com/DataBiosphere/dos-azul-lambda"
-        }
+    }
 
 
 @app.route(base_path + '/dataobjects/{data_object_id}', methods=['PUT'], cors=True)
@@ -426,4 +426,3 @@ def swagger():
     swagger = ga4gh.dos.schema.from_chalice_routes(app.routes)
     swagger['basePath'] = '/api/ga4gh/dos/v1'
     return swagger
-
