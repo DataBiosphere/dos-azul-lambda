@@ -177,6 +177,7 @@ es = elasticsearch.Elasticsearch(
     verify_certs=True,
     connection_class=elasticsearch.RequestsHttpConnection
 )
+
 app = Chalice(app_name='dos-azul-lambda')
 app.debug = os.environ.get('DEBUG', 'True') == 'True'
 
@@ -300,13 +301,9 @@ def get_data_bundle(data_bundle_id):
     :param data_bundle_id: the id of the data bundle
     :rtype: DataBundle
     """
-    print("hello")
 
-    print("bool " + es.exists(index=INDEXES['data_bdl']))
-    if es.exists(index=INDEXES['data_bdl']):
-        print("true")
-        body = {'error': 'data bundle index does not exist'}
-        return Response(body, status_code=404)
+    if not es.indices.exists(index=INDEXES['data_bdl']):
+        raise NotFoundError("Data bundle index does not exist")
 
     return azul_get_document(key='id', val=data_bundle_id, name='data_bundle',
                              map_fn=azul_to_bdl, es_index=INDEXES['data_bdl'],
@@ -371,9 +368,8 @@ def list_data_bundles(**kwargs):
 
     :rtype: ListDataBundlesResponse
     """
-    if es.exists(index=INDEXES['data_bdl']):
-        body = {'error': 'data bundle index does not exist'}
-        return Response(body, status_code=404)
+    if not es.indices.exists(index=INDEXES['data_bdl']):
+        raise NotFoundError("Data bundle index does not exist")
 
     req_body = app.current_request.query_params or {}
     page_token = req_body.get('page_token', 0)
