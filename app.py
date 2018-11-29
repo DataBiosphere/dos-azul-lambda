@@ -186,7 +186,11 @@ base_path = '/ga4gh/dos/v1'
 
 @app.route('/', cors=True)
 def index():
-    return es.info()  # Returns a 2-tuple: (health info as JSON, status code)
+    return Response(body='<h2>Welcome to Dos-Azul-Lambda! '
+                         'Find the docs '
+                         '<a href="https://ga4gh.github.io/data-repository-service-schemas/">here</a></h2>',
+                    status_code=200,
+                    headers={'Content-Type': 'text/html'})
 
 
 @app.route('/test_token', methods=["GET", "POST"], cors=True)
