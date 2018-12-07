@@ -45,4 +45,4 @@ class TestApp(ga4gh.dos.test.compliance.AbstractComplianceTest):
         """
         r, status = self._make_request('GET', '/', base_url='')
         self.assertEqual(status, 200)
-        self.assertIn('version', list(json.loads(r).keys()))
+        self.assertIn("Dos-Azul-Lambda", r)
