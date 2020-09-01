@@ -4,3 +4,5 @@ chalice>=1.6.0,<2
 # Updates to the elasticsearch dependency should fall within elasticsearch>=5.0.0,<6.0.0
 elasticsearch==5.5.3
 ga4gh-dos-schemas==0.4.2
+
+flask-cors>=3.0.9 # not directly required, pinned by Snyk to avoid a vulnerability
